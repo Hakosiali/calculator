@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, Search, Bell, Briefcase, Users } from 'lucide-react'
-import { getClients, getMissions } from '../../lib/dataClient'
+import { dataClient } from '../../lib/dataClient'
+import { useAsyncData } from '../../hooks/useAsyncData'
 
 interface TopbarProps {
   onMenuClick: () => void
@@ -12,6 +13,15 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const [focused, setFocused] = useState(false)
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Fetched once on mount (not per keystroke) and filtered locally as the
+  // user types, same UX as the old synchronous getClients()/getMissions().
+  const { data } = useAsyncData(
+    () => Promise.all([dataClient.clients.list(), dataClient.missions.list()]),
+    [],
+  )
+  const clients = useMemo(() => data?.[0] ?? [], [data])
+  const missions = useMemo(() => data?.[1] ?? [], [data])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -24,8 +34,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   }, [])
 
   const q = query.trim().toLowerCase()
-  const clientResults = q ? getClients().filter((c) => c.name.toLowerCase().includes(q)).slice(0, 4) : []
-  const missionResults = q ? getMissions().filter((m) => m.title.toLowerCase().includes(q)).slice(0, 4) : []
+  const clientResults = q ? clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 4) : []
+  const missionResults = q ? missions.filter((m) => m.title.toLowerCase().includes(q)).slice(0, 4) : []
   const showDropdown = focused && q.length > 0
 
   return (

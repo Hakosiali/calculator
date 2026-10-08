@@ -67,13 +67,11 @@ peuvent venir de deux endroits :
 Tout passe par `src/lib/dataClient.ts`, dont chaque fonction **retourne une
 Promise** (`dataClient.clients.list()`, `dataClient.missions.byClient(id)`,
 etc.) : elle interroge Supabase si `isSupabaseConfigured` est vrai, sinon
-elle résout depuis les tableaux mock. Les pages **Clients** et
-**ClientDetail** consomment déjà ce client asynchrone via le hook
-`useAsyncData` (avec états de chargement et d'erreur) — c'est le modèle à
-suivre pour migrer les autres pages, qui lisent encore les accesseurs
-synchrones en bas de `dataClient.ts` (`getMissions()`, `getTasks()`, etc.).
+elle résout depuis les tableaux mock. Toutes les pages, la recherche globale
+de la barre du haut et l'Assistant IA consomment déjà ce client asynchrone
+via le hook `useAsyncData` (avec états de chargement et d'erreur) — il n'y a
+plus aucun accesseur synchrone lisant les mocks directement.
 
-Voir **[SETUP.md](./SETUP.md)** pour : créer un projet Supabase, exécuter
-`supabase/schema.sql` puis `supabase/seed.sql`, configurer `.env.local`, et
-le détail de ce qu'il reste à migrer (le reste des pages, l'authentification,
-les écritures).
+Voir **[SETUP.md](./SETUP.md)** pour créer un projet Supabase, exécuter
+`supabase/schema.sql` puis `supabase/seed.sql`, et configurer `.env.local`
+(l'authentification et les écritures restent à faire, voir plus bas).

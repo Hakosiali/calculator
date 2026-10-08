@@ -42,16 +42,29 @@ export function Assistant() {
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setTyping(true)
-    setTimeout(() => {
-      const reply: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: answerQuestion(trimmed),
-        timestamp: nowIso(),
-      }
-      setMessages((prev) => [...prev, reply])
-      setTyping(false)
-    }, 500)
+
+    // Overlap the real data fetch with a minimum "thinking" delay so the
+    // typing indicator never flashes faster than it would against Supabase.
+    Promise.all([answerQuestion(trimmed), new Promise((resolve) => setTimeout(resolve, 500))])
+      .then(([content]) => {
+        const reply: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content,
+          timestamp: nowIso(),
+        }
+        setMessages((prev) => [...prev, reply])
+      })
+      .catch(() => {
+        const reply: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: "Désolé, une erreur est survenue en consultant les données. Réessayez dans un instant.",
+          timestamp: nowIso(),
+        }
+        setMessages((prev) => [...prev, reply])
+      })
+      .finally(() => setTyping(false))
   }
 
   return (

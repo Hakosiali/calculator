@@ -68,25 +68,24 @@ loading and error states) — and confirm it loads from your project.
 - `src/hooks/useAsyncData.ts` is a small `{ data, loading, error }` hook
   pages use to call `dataClient`.
 
-## Migrating the rest of the pages
+## Migration status
 
-Every page is now on the live, Supabase-aware `dataClient`. The only two
-things left reading the synchronous mock-only getters at the bottom of
-`dataClient.ts` are `src/components/layout/Topbar.tsx` (the global search,
-`getClients()`/`getMissions()`) and `src/lib/assistant.ts` (the AI
-Assistant's canned answers, `getClients()`/`getMissions()`/`getTasks()`/
-`getInvoices()`). Neither is a page with a route of its own, so migrating
-them means adding `useAsyncData` (or an equivalent fetch-on-mount) to a
-component (Topbar) and a small refactor of assistant.ts's synchronous
-answer functions to async ones. To migrate a page (for reference, though
-none are left):
+Done. Every page, the Topbar global search, and the AI Assistant
+(`assistant.ts`) all read through the async, Supabase-aware `dataClient`.
+There are no more synchronous mock-only getters in `dataClient.ts` — when
+a Supabase project is configured, every part of the app reads live data,
+with no code left that silently reads mock data instead.
 
-1. Replace its synchronous getter call(s) with the matching `dataClient.*`
-   call(s), wrapped in `useAsyncData`.
+For reference, this is the pattern every migration followed, in case new
+pages or components are added later:
+
+1. Call the matching `dataClient.*` method(s), wrapped in `useAsyncData`
+   (or, for a component that only needs data once like Topbar, fetched on
+   mount and filtered locally).
 2. Add a loading state (see the skeletons in `Clients.tsx` /
-   `ClientDetail.tsx` for the pattern) and surface `error` if it's set.
-3. Once nothing in the codebase calls a given sync getter anymore, delete
-   it from the bottom of `dataClient.ts`.
+   `ClientDetail.tsx` for the page pattern) and surface `error` if it's set.
+3. Never add a new synchronous mock-only getter to `dataClient.ts` — write
+   the async method only.
 
 ## Before this goes anywhere real
 

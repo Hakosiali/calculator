@@ -4,9 +4,8 @@
 // arrays directly from page/components. The `dataClient` object queries
 // Supabase when a project is configured (see .env.example / SETUP.md) and
 // transparently falls back to the local mock data otherwise, so the app
-// keeps working with zero setup. Pages migrate to this async client one at
-// a time (see Clients.tsx / ClientDetail.tsx for the pattern); everything
-// else still reads the synchronous getters at the bottom of this file.
+// keeps working with zero setup. Every consumer (all pages, the Topbar
+// global search, the AI Assistant) reads through this async client.
 
 import { clients } from '../data/clients'
 import { missions } from '../data/missions'
@@ -229,16 +228,3 @@ export const dataClient = {
     },
   },
 }
-
-// Synchronous accessors for components that still render immediately from
-// mock data without a loading state. Only the Topbar (global search) and
-// the AI Assistant's assistant.ts read these now — every page has
-// migrated to `dataClient` (async, Supabase-aware) + useAsyncData. Once
-// those two are migrated too, delete whichever of these they stop calling
-// (as already happened to getClient, getMission, getMissionsByClient,
-// getTasksByMission, getDocumentsByMission/ByClient, getInvoicesByClient,
-// getTeam, getDocuments and getCalendarEvents).
-export const getClients = () => clients
-export const getMissions = () => missions
-export const getTasks = () => tasks
-export const getInvoices = () => invoices
