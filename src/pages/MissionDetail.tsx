@@ -4,7 +4,8 @@ import { ArrowLeft, Briefcase, Calendar, Wallet, FileText } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getClient, getMission, getTasksByMission, getDocumentsByMission } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles, taskStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
 import type { TaskStatus } from '../types'
@@ -14,18 +15,48 @@ const TASK_STATUSES: TaskStatus[] = ['À faire', 'En cours', 'En révision', 'Te
 
 export function MissionDetail() {
   const { missionId } = useParams()
-  const mission = missionId ? getMission(missionId) : undefined
   const [taskStatuses, setTaskStatuses] = useState<Record<string, TaskStatus>>({})
 
-  if (!mission) return <NotFound />
-
-  const client = getClient(mission.clientId)
-  const tasks = getTasksByMission(mission.id)
-  const documents = getDocumentsByMission(mission.id)
+  const { data, loading, error } = useAsyncData(async () => {
+    if (!missionId) return null
+    const mission = await dataClient.missions.get(missionId)
+    if (!mission) return { mission: undefined, client: undefined, tasks: [], documents: [] }
+    const [client, tasks, documents] = await Promise.all([
+      dataClient.clients.get(mission.clientId),
+      dataClient.tasks.byMission(missionId),
+      dataClient.documents.byMission(missionId),
+    ])
+    return { mission, client, tasks, documents }
+  }, [missionId])
 
   function statusFor(taskId: string, fallback: TaskStatus) {
     return taskStatuses[taskId] ?? fallback
   }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+        <div className="h-48 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="h-64 animate-pulse rounded-xl border border-slate-200 bg-slate-100 lg:col-span-2" />
+          <div className="h-48 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        Impossible de charger cette mission ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+      </div>
+    )
+  }
+
+  if (!data?.mission) return <NotFound />
+
+  const { mission, client, tasks, documents } = data
 
   return (
     <div>

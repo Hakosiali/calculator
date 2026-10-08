@@ -6,7 +6,8 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getClients, getMissions } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles } from '../lib/badges'
 import { formatDate } from '../lib/format'
 import type { MissionStatus, MissionType } from '../types'
@@ -26,8 +27,13 @@ export function Missions() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<MissionStatus | 'all'>('all')
   const [type, setType] = useState<MissionType | 'all'>('all')
-  const missions = getMissions()
-  const clients = getClients()
+
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([dataClient.missions.list(), dataClient.clients.list()]),
+    [],
+  )
+  const missions = data?.[0] ?? []
+  const clients = data?.[1] ?? []
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -48,7 +54,7 @@ export function Missions() {
     <div>
       <PageHeader
         title="Missions"
-        description={`${missions.length} missions au total`}
+        description={loading ? 'Chargement...' : `${missions.length} missions au total`}
         actions={
           <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             <Plus className="h-4 w-4" />
@@ -79,7 +85,19 @@ export function Missions() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les missions ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 space-y-2.5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={Briefcase} title="Aucune mission trouvée" description="Essayez d'ajuster vos filtres de recherche." />
         </div>

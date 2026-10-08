@@ -70,10 +70,11 @@ loading and error states) — and confirm it loads from your project.
 
 ## Migrating the rest of the pages
 
-Only **Clients** and **ClientDetail** have been switched over as the proven
-pattern. Every other page (Missions, Tasks, Documents, Invoices, Calendar,
-the Dashboard) still reads the synchronous mock-only getters at the bottom
-of `dataClient.ts` (`getMissions()`, `getTasks()`, etc.). To migrate one:
+**Clients/ClientDetail** and **Missions/MissionDetail** have been switched
+over as the proven pattern. Every other page (Tasks, Documents, Invoices,
+Calendar, the Dashboard, and the global search in Topbar) still reads the
+synchronous mock-only getters at the bottom of `dataClient.ts`
+(`getTasks()`, `getDocuments()`, etc.). To migrate one:
 
 1. Replace its synchronous getter call(s) with the matching `dataClient.*`
    call(s), wrapped in `useAsyncData`.

@@ -232,20 +232,15 @@ export const dataClient = {
 
 // Synchronous accessors for components that still render immediately from
 // mock data without a loading state. Migrate a page to `dataClient` (async,
-// Supabase-aware) + useAsyncData the same way Clients.tsx and
-// ClientDetail.tsx were, then its sync getters here can be deleted.
+// Supabase-aware) + useAsyncData the same way Clients/ClientDetail and
+// Missions/MissionDetail were, then its sync getters here can be deleted
+// (as happened to getClient, getMission, getMissionsByClient,
+// getTasksByMission, getDocumentsByMission/ByClient and
+// getInvoicesByClient once their last page caller migrated away).
 export const getClients = () => clients
-export const getClient = (id: string) => clients.find((c) => c.id === id)
 export const getMissions = () => missions
-export const getMission = (id: string) => missions.find((m) => m.id === id)
-export const getMissionsByClient = (clientId: string) =>
-  missions.filter((m) => m.clientId === clientId)
 export const getTasks = () => tasks
-export const getTasksByMission = (missionId: string) => tasks.filter((t) => t.missionId === missionId)
 export const getDocuments = () => documents
-export const getDocumentsByClient = (clientId: string) => documents.filter((d) => d.clientId === clientId)
-export const getDocumentsByMission = (missionId: string) => documents.filter((d) => d.missionId === missionId)
 export const getInvoices = () => invoices
-export const getInvoicesByClient = (clientId: string) => invoices.filter((i) => i.clientId === clientId)
 export const getCalendarEvents = () => calendarEvents
 export const getTeam = () => team
