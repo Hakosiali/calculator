@@ -232,15 +232,14 @@ export const dataClient = {
 
 // Synchronous accessors for components that still render immediately from
 // mock data without a loading state. Migrate a page to `dataClient` (async,
-// Supabase-aware) + useAsyncData the same way Clients/ClientDetail and
-// Missions/MissionDetail were, then its sync getters here can be deleted
-// (as happened to getClient, getMission, getMissionsByClient,
-// getTasksByMission, getDocumentsByMission/ByClient and
-// getInvoicesByClient once their last page caller migrated away).
+// Supabase-aware) + useAsyncData the same way Clients/ClientDetail,
+// Missions/MissionDetail and Tasks were, then its sync getters here can be
+// deleted (as happened to getClient, getMission, getMissionsByClient,
+// getTasksByMission, getDocumentsByMission/ByClient, getInvoicesByClient
+// and getTeam once their last page caller migrated away).
 export const getClients = () => clients
 export const getMissions = () => missions
 export const getTasks = () => tasks
 export const getDocuments = () => documents
 export const getInvoices = () => invoices
 export const getCalendarEvents = () => calendarEvents
-export const getTeam = () => team

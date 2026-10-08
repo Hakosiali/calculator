@@ -6,7 +6,8 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getTasks, getMissions, getTeam } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { priorityStyles } from '../lib/badges'
 import { formatDate, daysUntil } from '../lib/format'
 import type { Priority, TaskStatus } from '../types'
@@ -24,9 +25,13 @@ export function Tasks() {
   const [priority, setPriority] = useState<Priority | 'all'>('all')
   const [overrides, setOverrides] = useState<Record<string, TaskStatus>>({})
 
-  const tasks = getTasks()
-  const missions = getMissions()
-  const team = getTeam()
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([dataClient.tasks.list(), dataClient.missions.list(), dataClient.team.list()]),
+    [],
+  )
+  const tasks = data?.[0] ?? []
+  const missions = data?.[1] ?? []
+  const team = data?.[2] ?? []
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -46,7 +51,7 @@ export function Tasks() {
 
   return (
     <div>
-      <PageHeader title="Tâches" description={`${tasks.length} tâches réparties sur toutes les missions`} />
+      <PageHeader title="Tâches" description={loading ? 'Chargement...' : `${tasks.length} tâches réparties sur toutes les missions`} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher une tâche..." className="sm:max-w-xs" />
@@ -72,7 +77,19 @@ export function Tasks() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les tâches ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {COLUMNS.map((col) => (
+            <div key={col.status} className="h-80 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={ListChecks} title="Aucune tâche trouvée" description="Essayez d'ajuster vos filtres de recherche." />
         </div>
