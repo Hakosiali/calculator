@@ -5,7 +5,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getClients, getMissionsByClient } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles } from '../lib/badges'
 import type { ClientStatus } from '../types'
 
@@ -19,7 +20,19 @@ const STATUS_FILTERS: { label: string; value: ClientStatus | 'all' }[] = [
 export function Clients() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all')
-  const clients = getClients()
+
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([dataClient.clients.list(), dataClient.missions.list()]),
+    [],
+  )
+  const clients = data?.[0] ?? []
+  const missions = data?.[1] ?? []
+
+  const missionCountByClient = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const m of missions) counts.set(m.clientId, (counts.get(m.clientId) ?? 0) + 1)
+    return counts
+  }, [missions])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -38,7 +51,7 @@ export function Clients() {
     <div>
       <PageHeader
         title="Clients"
-        description={`${clients.length} entreprises clientes et prospects`}
+        description={loading ? 'Chargement...' : `${clients.length} entreprises clientes et prospects`}
         actions={
           <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             <Plus className="h-4 w-4" />
@@ -64,14 +77,26 @@ export function Clients() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les clients ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-36 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={Users} title="Aucun client trouvé" description="Essayez un autre terme de recherche ou filtre." />
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((client) => {
-            const missionCount = getMissionsByClient(client.id).length
+            const missionCount = missionCountByClient.get(client.id) ?? 0
             return (
               <Link
                 key={client.id}

@@ -2,12 +2,8 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import {
-  getClient,
-  getMissionsByClient,
-  getDocumentsByClient,
-  getInvoicesByClient,
-} from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate, formatDateLong } from '../lib/format'
 import { invoiceTotal } from '../lib/invoice'
@@ -15,13 +11,42 @@ import { NotFound } from './NotFound'
 
 export function ClientDetail() {
   const { clientId } = useParams()
-  const client = clientId ? getClient(clientId) : undefined
 
-  if (!client) return <NotFound />
+  const { data, loading, error } = useAsyncData(async () => {
+    if (!clientId) return null
+    const [client, missions, documents, invoices] = await Promise.all([
+      dataClient.clients.get(clientId),
+      dataClient.missions.byClient(clientId),
+      dataClient.documents.byClient(clientId),
+      dataClient.invoices.byClient(clientId),
+    ])
+    return { client, missions, documents, invoices }
+  }, [clientId])
 
-  const missions = getMissionsByClient(client.id)
-  const documents = getDocumentsByClient(client.id)
-  const invoices = getInvoicesByClient(client.id)
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+        <div className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="h-48 animate-pulse rounded-xl border border-slate-200 bg-slate-100 lg:col-span-1" />
+          <div className="h-64 animate-pulse rounded-xl border border-slate-200 bg-slate-100 lg:col-span-2" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        Impossible de charger ce client ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+      </div>
+    )
+  }
+
+  if (!data?.client) return <NotFound />
+
+  const { client, missions, documents, invoices } = data
 
   return (
     <div>

@@ -34,53 +34,46 @@ src/
   types/        Interfaces TypeScript du domaine (Client, Mission, Task, ...)
   data/         Données d'exemple (mock), un fichier par entité
   lib/
-    dataClient.ts   Couche d'accès aux données — point d'entrée unique
-    format.ts       Formatage (devise DZD, dates, initiales...)
-    badges.ts       Classes de couleur pour les badges de statut
-    assistant.ts    Logique de réponse de l'Assistant IA (mock)
+    dataClient.ts     Couche d'accès aux données — point d'entrée unique
+    supabaseClient.ts Client Supabase + détection "projet configuré ou non"
+    database.types.ts Types des tables Supabase (miroir de supabase/schema.sql)
+    format.ts         Formatage (devise DZD, dates, initiales...)
+    badges.ts         Classes de couleur pour les badges de statut
+    assistant.ts      Logique de réponse de l'Assistant IA (mock)
+  hooks/
+    useAsyncData.ts   Hook { data, loading, error } pour consommer dataClient
   components/
     layout/      Sidebar, Topbar, AppLayout
     ui/          Composants réutilisables (Badge, Avatar, StatCard, ...)
   pages/         Une page par section de la sidebar
+supabase/
+  schema.sql     Tables + RLS, à exécuter une fois dans un projet Supabase
+  seed.sql       Mêmes données que les mocks, générées par scripts/generate-seed.mjs
 ```
 
-## Données mock et migration future vers Supabase
+## Données et Supabase
 
-Aucune authentification ni base de données n'est branchée pour l'instant :
-toutes les données vivent dans `src/data/*.ts` et sont servies par
-`src/lib/dataClient.ts`.
+Aucune authentification n'est branchée pour l'instant. Les données, elles,
+peuvent venir de deux endroits :
 
-Ce fichier a volontairement la forme d'un futur client Supabase : chaque
-entité expose des fonctions qui **retournent des Promises**
-(`dataClient.clients.list()`, `dataClient.missions.byClient(id)`, etc.),
-même si elles résolvent aujourd'hui de façon synchrone depuis les tableaux
-mock. Quand Supabase sera branché, il suffira de remplacer le corps de ces
-fonctions par de vraies requêtes, par exemple :
+- **Par défaut : données mock locales** (`src/data/*.ts`), zéro
+  configuration nécessaire — c'est ce que vous voyez en l'absence de
+  variables d'environnement Supabase.
+- **Si un projet Supabase est configuré** (voir **[SETUP.md](./SETUP.md)**),
+  les mêmes données sont lues en direct depuis votre base. Le pied de la
+  barre latérale affiche "Données : démo (locale)" ou "Données : Supabase"
+  selon le cas.
 
-```ts
-// avant (mock)
-list: (): Promise<Client[]> => resolve(clients),
+Tout passe par `src/lib/dataClient.ts`, dont chaque fonction **retourne une
+Promise** (`dataClient.clients.list()`, `dataClient.missions.byClient(id)`,
+etc.) : elle interroge Supabase si `isSupabaseConfigured` est vrai, sinon
+elle résout depuis les tableaux mock. Les pages **Clients** et
+**ClientDetail** consomment déjà ce client asynchrone via le hook
+`useAsyncData` (avec états de chargement et d'erreur) — c'est le modèle à
+suivre pour migrer les autres pages, qui lisent encore les accesseurs
+synchrones en bas de `dataClient.ts` (`getMissions()`, `getTasks()`, etc.).
 
-// après (Supabase)
-list: async (): Promise<Client[]> => {
-  const { data, error } = await supabase.from('clients').select('*')
-  if (error) throw error
-  return data
-},
-```
-
-Les interfaces TypeScript dans `src/types/index.ts` utilisent déjà des noms
-de champs et des types de données (chaînes ISO pour les dates, `id: string`)
-compatibles avec des tables Postgres/Supabase, donc elles n'auront pas
-besoin d'être réécrites.
-
-Étapes prévues pour le passage à Supabase :
-
-1. Créer les tables Postgres à partir des interfaces de `src/types`.
-2. Ajouter `@supabase/supabase-js` et un client dans `src/lib/supabaseClient.ts`.
-3. Remplacer les implémentations dans `src/lib/dataClient.ts` par des
-   requêtes Supabase (les signatures de fonctions ne changent pas).
-4. Ajouter l'authentification (Supabase Auth) et un `AuthProvider` autour
-   du routeur dans `src/App.tsx`.
-5. Remplacer les accesseurs synchrones (`getClients()`, etc.) par des hooks
-   de données (React Query ou équivalent) consommant `dataClient`.
+Voir **[SETUP.md](./SETUP.md)** pour : créer un projet Supabase, exécuter
+`supabase/schema.sql` puis `supabase/seed.sql`, configurer `.env.local`, et
+le détail de ce qu'il reste à migrer (le reste des pages, l'authentification,
+les écritures).

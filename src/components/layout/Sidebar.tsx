@@ -9,7 +9,10 @@ import {
   CalendarDays,
   Sparkles,
   X,
+  Database,
+  HardDrive,
 } from 'lucide-react'
+import { isSupabaseConfigured } from '../../lib/supabaseClient'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -91,6 +94,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <p className="truncate text-sm font-semibold text-slate-800">Amina Belkacemi</p>
               <p className="truncate text-xs text-slate-500">Directrice Conseil RH</p>
             </div>
+          </div>
+          <div
+            className={`mt-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium ${
+              isSupabaseConfigured ? 'text-emerald-700' : 'text-slate-500'
+            }`}
+            title={
+              isSupabaseConfigured
+                ? 'Connecté à Supabase : les données sont lues depuis votre base.'
+                : "Mode démo : données d'exemple locales. Voir SETUP.md pour connecter Supabase."
+            }
+          >
+            {isSupabaseConfigured ? <Database className="h-3.5 w-3.5" /> : <HardDrive className="h-3.5 w-3.5" />}
+            {isSupabaseConfigured ? 'Données : Supabase' : 'Données : démo (locale)'}
           </div>
         </div>
       </aside>
