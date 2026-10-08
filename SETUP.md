@@ -18,8 +18,9 @@ Open the **SQL Editor** in your Supabase project and run, in order:
 1. `supabase/schema.sql` — creates the seven tables (`clients`, `missions`,
    `tasks`, `documents`, `invoices`, `calendar_events`, `team_members`) with
    foreign keys matching the relationships in `src/types/index.ts`, and
-   enables Row Level Security with permissive policies (see the note at the
-   bottom of that file — tighten these once Supabase Auth is added).
+   enables Row Level Security requiring a signed-in user (`auth.uid() is
+   not null`) for every read and write — see **5. Enable authentication**
+   below, since without a logged-in user these policies block everything.
 2. `supabase/seed.sql` — loads the exact same 12 clients / 20 missions / 44
    tasks / 26 documents / 16 invoices / 18 calendar events / 6 team members
    used by the local demo, so switching to Supabase doesn't change what you
@@ -52,9 +53,37 @@ npm run dev
 ```
 
 The sidebar footer shows **"Données : Supabase"** once it picks up the env
-vars (instead of **"Données : démo (locale)"**). Open the Clients page —
-it's the one already wired to live queries end to end (list + detail, with
-loading and error states) — and confirm it loads from your project.
+vars (instead of **"Données : démo (locale)"**), and the app now gates
+every route behind a login screen — see the next section to create an
+account.
+
+## 5. Enable authentication
+
+As soon as the two env vars above are set, the app requires a signed-in
+user (demo mode, with no env vars, never shows a login screen — see
+**How auth interacts with demo mode** below).
+
+1. In your Supabase project, go to **Authentication → Providers** and
+   confirm **Email** is enabled (it is by default).
+2. There's no public sign-up screen in the app — HRCC is an internal tool,
+   so accounts are provisioned by whoever administers the Supabase
+   project, not self-served. Create one: **Authentication → Users → Add
+   user**, fill in an email and password, and (for the fastest path)
+   tick **Auto Confirm User** so it skips email verification.
+3. Open the app and sign in with that email/password at `/login` (you're
+   redirected there automatically). The sidebar footer then shows the
+   signed-in user's email instead of the demo placeholder, with a
+   sign-out button next to it.
+
+### How auth interacts with demo mode
+
+`src/lib/AuthProvider.tsx` and `src/components/auth/RequireAuth.tsx` both
+check `isSupabaseConfigured` first: with no Supabase project configured,
+every route stays open and a synthetic demo user is used everywhere the
+UI needs one (the sidebar card), exactly like before this feature existed.
+This is what keeps the public GitHub Pages demo open to everyone — the
+production build there has no Supabase env vars baked in, so it never
+shows a login screen. Auth only turns on once you add real credentials.
 
 ## How the wiring works
 
@@ -89,9 +118,14 @@ pages or components are added later:
 
 ## Before this goes anywhere real
 
-- **Auth.** There is none yet — the RLS policies in `schema.sql` allow
-  anyone with the anon key to read and write every table. Add Supabase
-  Auth, then replace those policies with checks against `auth.uid()` /
-  a role claim.
+- **Auth is all-or-nothing today.** Every signed-in user can read and write
+  every row — there's no per-consultant or per-role restriction, because
+  the data model has no concept of record ownership yet. If HRCC needs
+  that later, add a role claim (or a `team_members` → `auth.users` link)
+  and tighten the `auth.uid() is not null` checks in `schema.sql`
+  accordingly.
+- **No password reset / email confirmation flow in the UI.** The login
+  page only handles sign-in. Supabase sends its own reset/confirmation
+  emails from the dashboard if you need them in the meantime.
 - **Writes.** The UI's "Nouveau client", "Nouvelle mission", etc. buttons
   are still inert — only reads are wired up so far.

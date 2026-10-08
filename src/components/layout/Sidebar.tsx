@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
@@ -11,8 +11,10 @@ import {
   X,
   Database,
   HardDrive,
+  LogOut,
 } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
+import { useAuth } from '../../lib/AuthProvider'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -31,6 +33,16 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/login')
+  }
+
+  const emailInitials = isSupabaseConfigured && user?.email ? user.email.slice(0, 2).toUpperCase() : 'AB'
+
   return (
     <>
       {open && (
@@ -87,13 +99,29 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-              AB
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+              {emailInitials}
             </div>
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-semibold text-slate-800">Amina Belkacemi</p>
-              <p className="truncate text-xs text-slate-500">Directrice Conseil RH</p>
+            <div className="min-w-0 flex-1 leading-tight">
+              {isSupabaseConfigured ? (
+                <p className="truncate text-sm font-semibold text-slate-800">{user?.email}</p>
+              ) : (
+                <>
+                  <p className="truncate text-sm font-semibold text-slate-800">Amina Belkacemi</p>
+                  <p className="truncate text-xs text-slate-500">Directrice Conseil RH</p>
+                </>
+              )}
             </div>
+            {isSupabaseConfigured && (
+              <button
+                onClick={handleSignOut}
+                className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                aria-label="Se déconnecter"
+                title="Se déconnecter"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <div
             className={`mt-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium ${

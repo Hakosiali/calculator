@@ -37,24 +37,37 @@ src/
     dataClient.ts     Couche d'accès aux données — point d'entrée unique
     supabaseClient.ts Client Supabase + détection "projet configuré ou non"
     database.types.ts Types des tables Supabase (miroir de supabase/schema.sql)
+    AuthProvider.tsx  Contexte d'authentification (voir plus bas)
     format.ts         Formatage (devise DZD, dates, initiales...)
     badges.ts         Classes de couleur pour les badges de statut
     assistant.ts      Logique de réponse de l'Assistant IA (mock)
   hooks/
     useAsyncData.ts   Hook { data, loading, error } pour consommer dataClient
   components/
+    auth/        RequireAuth (protection des routes)
     layout/      Sidebar, Topbar, AppLayout
     ui/          Composants réutilisables (Badge, Avatar, StatCard, ...)
-  pages/         Une page par section de la sidebar
+  pages/
+    Login.tsx    Écran de connexion
+    ...          Une page par section de la sidebar
 supabase/
   schema.sql     Tables + RLS, à exécuter une fois dans un projet Supabase
   seed.sql       Mêmes données que les mocks, générées par scripts/generate-seed.mjs
 ```
 
+## Authentification
+
+Pas d'écran d'inscription : HRCC est un outil interne, les comptes sont
+créés par qui administre le projet Supabase (voir **[SETUP.md](./SETUP.md)**).
+Tant qu'aucun projet Supabase n'est configuré (mode démo), l'application
+reste entièrement ouverte, sans écran de connexion — exactement comme la
+démo publiée sur GitHub Pages. Dès qu'un projet est configuré, chaque route
+est protégée par `src/components/auth/RequireAuth.tsx` et redirige vers
+`/login` si personne n'est connecté.
+
 ## Données et Supabase
 
-Aucune authentification n'est branchée pour l'instant. Les données, elles,
-peuvent venir de deux endroits :
+Les données peuvent venir de deux endroits :
 
 - **Par défaut : données mock locales** (`src/data/*.ts`), zéro
   configuration nécessaire — c'est ce que vous voyez en l'absence de

@@ -93,11 +93,15 @@ create table if not exists team_members (
 );
 
 -- Row Level Security -----------------------------------------------------
--- The app has no authentication yet (by design, see README.md), so these
--- policies allow anyone with the anon key to read and write every table.
--- That is fine for local development against your own project, but before
--- this goes anywhere real: add Supabase Auth, then replace each "true"
--- below with a check against auth.uid() / a role claim.
+-- The app's data model has no notion of per-record ownership (every HRCC
+-- consultant can see every client/mission — it's a shared internal tool,
+-- not a multi-tenant one), so these policies draw the line at "signed in
+-- or not": any authenticated user can read and write every table, and
+-- anonymous (logged-out) requests are rejected outright. That matches
+-- src/components/auth/RequireAuth.tsx, which gates every route the same
+-- way once a Supabase project is configured. If HRCC later needs
+-- per-consultant or per-role restrictions, replace `auth.uid() is not
+-- null` below with a real check (e.g. against a role claim).
 
 alter table clients enable row level security;
 alter table missions enable row level security;
@@ -114,6 +118,10 @@ begin
   foreach t in array array['clients', 'missions', 'tasks', 'documents', 'invoices', 'calendar_events', 'team_members']
   loop
     execute format('drop policy if exists "dev_allow_all" on %I', t);
-    execute format('create policy "dev_allow_all" on %I for all using (true) with check (true)', t);
+    execute format('drop policy if exists "authenticated_read_write" on %I', t);
+    execute format(
+      'create policy "authenticated_read_write" on %I for all using (auth.uid() is not null) with check (auth.uid() is not null)',
+      t
+    );
   end loop;
 end $$;
