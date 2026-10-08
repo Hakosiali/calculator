@@ -5,7 +5,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getDocuments, getClients, getMissions } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { formatDate } from '../lib/format'
 import type { DocumentCategory } from '../types'
 
@@ -44,9 +45,13 @@ export function Documents() {
   const [category, setCategory] = useState<DocumentCategory | 'all'>('all')
   const [clientId, setClientId] = useState('all')
 
-  const documents = getDocuments()
-  const clients = getClients()
-  const missions = getMissions()
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([dataClient.documents.list(), dataClient.clients.list(), dataClient.missions.list()]),
+    [],
+  )
+  const documents = data?.[0] ?? []
+  const clients = data?.[1] ?? []
+  const missions = data?.[2] ?? []
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -62,7 +67,7 @@ export function Documents() {
     <div>
       <PageHeader
         title="Documents"
-        description={`${documents.length} fichiers (contrats, rapports, factures, CV...)`}
+        description={loading ? 'Chargement...' : `${documents.length} fichiers (contrats, rapports, factures, CV...)`}
         actions={
           <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             <Upload className="h-4 w-4" />
@@ -94,7 +99,19 @@ export function Documents() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les documents ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={FolderOpen} title="Aucun document trouvé" description="Essayez d'ajuster vos filtres de recherche." />
         </div>
