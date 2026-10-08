@@ -6,7 +6,8 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { StatCard } from '../components/ui/StatCard'
 import { EmptyState } from '../components/ui/EmptyState'
-import { getInvoices, getClients } from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
 import { invoiceTotal } from '../lib/invoice'
@@ -20,8 +21,12 @@ export function Invoices() {
   const [clientId, setClientId] = useState('all')
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  const invoices = getInvoices()
-  const clients = getClients()
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([dataClient.invoices.list(), dataClient.clients.list()]),
+    [],
+  )
+  const invoices = data?.[0] ?? []
+  const clients = data?.[1] ?? []
 
   const totals = useMemo(() => {
     const paid = invoices.filter((i) => i.status === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
@@ -45,7 +50,7 @@ export function Invoices() {
     <div>
       <PageHeader
         title="Factures"
-        description={`${invoices.length} factures émises`}
+        description={loading ? 'Chargement...' : `${invoices.length} factures émises`}
         actions={
           <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
             <Plus className="h-4 w-4" />
@@ -83,7 +88,19 @@ export function Invoices() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger les factures ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-6">
           <EmptyState icon={Receipt} title="Aucune facture trouvée" description="Essayez d'ajuster vos filtres de recherche." />
         </div>
