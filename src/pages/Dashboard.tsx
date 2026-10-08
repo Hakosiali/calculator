@@ -25,14 +25,8 @@ import {
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatCard } from '../components/ui/StatCard'
 import { Badge } from '../components/ui/Badge'
-import {
-  getClients,
-  getMissions,
-  getTasks,
-  getInvoices,
-  getDocuments,
-  getCalendarEvents,
-} from '../lib/dataClient'
+import { dataClient } from '../lib/dataClient'
+import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceTotal } from '../lib/invoice'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
 import { missionStatusStyles } from '../lib/badges'
@@ -46,12 +40,24 @@ const MISSION_COLORS: Record<string, string> = {
 }
 
 export function Dashboard() {
-  const clients = getClients()
-  const missions = getMissions()
-  const tasks = getTasks()
-  const invoices = getInvoices()
-  const documents = getDocuments()
-  const events = getCalendarEvents()
+  const { data, loading, error } = useAsyncData(
+    () =>
+      Promise.all([
+        dataClient.clients.list(),
+        dataClient.missions.list(),
+        dataClient.tasks.list(),
+        dataClient.invoices.list(),
+        dataClient.documents.list(),
+        dataClient.calendarEvents.list(),
+      ]),
+    [],
+  )
+  const clients = data?.[0] ?? []
+  const missions = data?.[1] ?? []
+  const tasks = data?.[2] ?? []
+  const invoices = data?.[3] ?? []
+  const documents = data?.[4] ?? []
+  const events = data?.[5] ?? []
 
   const activeClients = clients.filter((c) => c.status === 'actif').length
   const ongoingMissions = missions.filter((m) => m.status === 'En cours').length
@@ -117,6 +123,34 @@ export function Dashboard() {
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
       .slice(0, 6)
   }, [events])
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Tableau de bord" />
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de charger le tableau de bord ({error.message}). Vérifiez votre configuration Supabase dans .env.local.
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Tableau de bord" description="Chargement..." />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="h-80 animate-pulse rounded-xl border border-slate-200 bg-slate-100 lg:col-span-2" />
+          <div className="h-80 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>

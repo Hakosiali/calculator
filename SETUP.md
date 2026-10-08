@@ -70,13 +70,16 @@ loading and error states) — and confirm it loads from your project.
 
 ## Migrating the rest of the pages
 
-**Clients/ClientDetail**, **Missions/MissionDetail**, **Tasks**,
-**Documents**, **Invoices** and **Calendar** have been switched over as the
-proven pattern. Only the Dashboard and the global search in Topbar still
-read the synchronous mock-only getters at the bottom of `dataClient.ts`
-(`getClients()`, `getMissions()`, `getDocuments()`, `getInvoices()`,
-`getCalendarEvents()` — all still called from there, and `getTasks()` from
-the AI Assistant's `assistant.ts`). To migrate one:
+Every page is now on the live, Supabase-aware `dataClient`. The only two
+things left reading the synchronous mock-only getters at the bottom of
+`dataClient.ts` are `src/components/layout/Topbar.tsx` (the global search,
+`getClients()`/`getMissions()`) and `src/lib/assistant.ts` (the AI
+Assistant's canned answers, `getClients()`/`getMissions()`/`getTasks()`/
+`getInvoices()`). Neither is a page with a route of its own, so migrating
+them means adding `useAsyncData` (or an equivalent fetch-on-mount) to a
+component (Topbar) and a small refactor of assistant.ts's synchronous
+answer functions to async ones. To migrate a page (for reference, though
+none are left):
 
 1. Replace its synchronous getter call(s) with the matching `dataClient.*`
    call(s), wrapped in `useAsyncData`.

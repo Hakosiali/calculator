@@ -231,15 +231,14 @@ export const dataClient = {
 }
 
 // Synchronous accessors for components that still render immediately from
-// mock data without a loading state. Migrate a page to `dataClient` (async,
-// Supabase-aware) + useAsyncData the same way Clients/ClientDetail,
-// Missions/MissionDetail and Tasks were, then its sync getters here can be
-// deleted (as happened to getClient, getMission, getMissionsByClient,
-// getTasksByMission, getDocumentsByMission/ByClient, getInvoicesByClient
-// and getTeam once their last page caller migrated away).
+// mock data without a loading state. Only the Topbar (global search) and
+// the AI Assistant's assistant.ts read these now — every page has
+// migrated to `dataClient` (async, Supabase-aware) + useAsyncData. Once
+// those two are migrated too, delete whichever of these they stop calling
+// (as already happened to getClient, getMission, getMissionsByClient,
+// getTasksByMission, getDocumentsByMission/ByClient, getInvoicesByClient,
+// getTeam, getDocuments and getCalendarEvents).
 export const getClients = () => clients
 export const getMissions = () => missions
 export const getTasks = () => tasks
-export const getDocuments = () => documents
 export const getInvoices = () => invoices
-export const getCalendarEvents = () => calendarEvents
