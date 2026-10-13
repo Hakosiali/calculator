@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewMissionModal } from '../components/missions/NewMissionModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
@@ -11,8 +13,9 @@ import { NotFound } from './NotFound'
 
 export function ClientDetail() {
   const { clientId } = useParams()
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, loading, error, refetch } = useAsyncData(async () => {
     if (!clientId) return null
     const [client, missions, documents, invoices] = await Promise.all([
       dataClient.clients.get(clientId),
@@ -72,11 +75,16 @@ export function ClientDetail() {
           <button className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Modifier
           </button>
-          <button className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
             Nouvelle mission
           </button>
         </div>
       </div>
+
+      <NewMissionModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} clientId={client.id} />
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">

@@ -6,6 +6,7 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewMissionModal } from '../components/missions/NewMissionModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles } from '../lib/badges'
@@ -27,8 +28,9 @@ export function Missions() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<MissionStatus | 'all'>('all')
   const [type, setType] = useState<MissionType | 'all'>('all')
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.missions.list(), dataClient.clients.list()]),
     [],
   )
@@ -56,12 +58,17 @@ export function Missions() {
         title="Missions"
         description={loading ? 'Chargement...' : `${missions.length} missions au total`}
         actions={
-          <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
             <Plus className="h-4 w-4" />
             Nouvelle mission
           </button>
         }
       />
+
+      <NewMissionModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher une mission, un client..." className="sm:max-w-xs" />

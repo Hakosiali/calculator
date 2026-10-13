@@ -143,5 +143,8 @@ pages or components are added later:
 - **No password reset / email confirmation flow in the UI.** The login
   page only handles sign-in. Supabase sends its own reset/confirmation
   emails from the dashboard if you need them in the meantime.
-- **Writes.** The UI's "Nouveau client", "Nouvelle mission", etc. buttons
-  are still inert — only reads are wired up so far.
+- **Writes are partial.** "Nouveau client" and "Nouvelle mission" create
+  records (in `dataClient.clients.create()` / `dataClient.missions.create()`,
+  same demo/Supabase-aware pattern as reads). Editing or deleting existing
+  clients/missions, and creating tasks, documents, invoices or calendar
+  events, aren't wired up yet.

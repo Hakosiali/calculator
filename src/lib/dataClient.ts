@@ -140,6 +140,44 @@ function unwrap<T>({ data, error }: { data: T | null; error: { message: string }
   return data as T
 }
 
+// --- App type -> Supabase row mappers (camelCase -> snake_case), for writes
+
+function clientToRow(c: Omit<Client, 'id'> & { id: string }): ClientRow {
+  return {
+    id: c.id,
+    name: c.name,
+    sector: c.sector,
+    wilaya: c.wilaya,
+    address: c.address,
+    contact_name: c.contactName,
+    contact_role: c.contactRole,
+    contact_email: c.contactEmail,
+    contact_phone: c.contactPhone,
+    status: c.status,
+    client_since: c.clientSince,
+    employee_count: c.employeeCount,
+    notes: c.notes,
+  }
+}
+
+function missionToRow(m: Omit<Mission, 'id'> & { id: string }): MissionRow {
+  return {
+    id: m.id,
+    reference: m.reference,
+    title: m.title,
+    client_id: m.clientId,
+    type: m.type,
+    status: m.status,
+    priority: m.priority,
+    consultant: m.consultant,
+    start_date: m.startDate,
+    end_date: m.endDate,
+    budget: m.budget,
+    progress: m.progress,
+    description: m.description,
+  }
+}
+
 export const dataClient = {
   clients: {
     list: async (): Promise<Client[]> => {
@@ -152,6 +190,15 @@ export const dataClient = {
       const res = await supabase!.from('clients').select('*').eq('id', id).maybeSingle()
       const row = unwrap(res)
       return row ? mapClient(row) : undefined
+    },
+    create: async (input: Omit<Client, 'id'>): Promise<Client> => {
+      const newClient: Client = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        clients.push(newClient)
+        return resolve(newClient)
+      }
+      const res = await supabase!.from('clients').insert(clientToRow(newClient)).select().single()
+      return mapClient(unwrap(res))
     },
   },
   missions: {
@@ -170,6 +217,15 @@ export const dataClient = {
       if (!isSupabaseConfigured) return resolve(missions.filter((m) => m.clientId === clientId))
       const res = await supabase!.from('missions').select('*').eq('client_id', clientId)
       return unwrap(res).map(mapMission)
+    },
+    create: async (input: Omit<Mission, 'id'>): Promise<Mission> => {
+      const newMission: Mission = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        missions.push(newMission)
+        return resolve(newMission)
+      }
+      const res = await supabase!.from('missions').insert(missionToRow(newMission)).select().single()
+      return mapMission(unwrap(res))
     },
   },
   tasks: {
