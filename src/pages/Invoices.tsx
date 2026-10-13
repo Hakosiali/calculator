@@ -6,6 +6,7 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { StatCard } from '../components/ui/StatCard'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewInvoiceModal } from '../components/invoices/NewInvoiceModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceStatusStyles } from '../lib/badges'
@@ -20,8 +21,9 @@ export function Invoices() {
   const [status, setStatus] = useState<InvoiceStatus | 'all'>('all')
   const [clientId, setClientId] = useState('all')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.invoices.list(), dataClient.clients.list()]),
     [],
   )
@@ -52,12 +54,17 @@ export function Invoices() {
         title="Factures"
         description={loading ? 'Chargement...' : `${invoices.length} factures émises`}
         actions={
-          <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
             <Plus className="h-4 w-4" />
             Nouvelle facture
           </button>
         }
       />
+
+      <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Total encaissé" value={formatCurrencyDZD(totals.paid)} icon={Wallet} accent="bg-emerald-50 text-emerald-600" />

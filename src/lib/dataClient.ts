@@ -205,6 +205,32 @@ function documentToRow(d: Omit<AppDocument, 'id'> & { id: string }): DocumentRow
   }
 }
 
+function invoiceToRow(i: Omit<Invoice, 'id'> & { id: string }): InvoiceRow {
+  return {
+    id: i.id,
+    number: i.number,
+    client_id: i.clientId,
+    mission_id: i.missionId,
+    status: i.status,
+    issue_date: i.issueDate,
+    due_date: i.dueDate,
+    items: i.items,
+  }
+}
+
+function calendarEventToRow(e: Omit<CalendarEvent, 'id'> & { id: string }): CalendarEventRow {
+  return {
+    id: e.id,
+    title: e.title,
+    date: e.date,
+    time: e.time,
+    type: e.type,
+    client_id: e.clientId,
+    mission_id: e.missionId,
+    location: e.location,
+  }
+}
+
 // --- Demo-mode delete cascades --------------------------------------------
 // Mirrors the foreign-key behaviour declared in supabase/schema.sql (mission
 // -> client and task -> mission are `on delete cascade`; document/invoice/
@@ -247,7 +273,7 @@ function cascadeDeleteClient(clientId: string) {
 export const dataClient = {
   clients: {
     list: async (): Promise<Client[]> => {
-      if (!isSupabaseConfigured) return resolve(clients)
+      if (!isSupabaseConfigured) return resolve([...clients])
       const res = await supabase!.from('clients').select('*').order('name')
       return unwrap(res).map(mapClient)
     },
@@ -289,7 +315,7 @@ export const dataClient = {
   },
   missions: {
     list: async (): Promise<Mission[]> => {
-      if (!isSupabaseConfigured) return resolve(missions)
+      if (!isSupabaseConfigured) return resolve([...missions])
       const res = await supabase!.from('missions').select('*').order('start_date', { ascending: false })
       return unwrap(res).map(mapMission)
     },
@@ -336,7 +362,7 @@ export const dataClient = {
   },
   tasks: {
     list: async (): Promise<Task[]> => {
-      if (!isSupabaseConfigured) return resolve(tasks)
+      if (!isSupabaseConfigured) return resolve([...tasks])
       const res = await supabase!.from('tasks').select('*')
       return unwrap(res).map(mapTask)
     },
@@ -367,7 +393,7 @@ export const dataClient = {
   },
   documents: {
     list: async (): Promise<AppDocument[]> => {
-      if (!isSupabaseConfigured) return resolve(documents)
+      if (!isSupabaseConfigured) return resolve([...documents])
       const res = await supabase!.from('documents').select('*').order('uploaded_date', { ascending: false })
       return unwrap(res).map(mapDocument)
     },
@@ -393,7 +419,7 @@ export const dataClient = {
   },
   invoices: {
     list: async (): Promise<Invoice[]> => {
-      if (!isSupabaseConfigured) return resolve(invoices)
+      if (!isSupabaseConfigured) return resolve([...invoices])
       const res = await supabase!.from('invoices').select('*').order('issue_date', { ascending: false })
       return unwrap(res).map(mapInvoice)
     },
@@ -402,17 +428,35 @@ export const dataClient = {
       const res = await supabase!.from('invoices').select('*').eq('client_id', clientId)
       return unwrap(res).map(mapInvoice)
     },
+    create: async (input: Omit<Invoice, 'id'>): Promise<Invoice> => {
+      const newInvoice: Invoice = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        invoices.push(newInvoice)
+        return resolve(newInvoice)
+      }
+      const res = await supabase!.from('invoices').insert(invoiceToRow(newInvoice)).select().single()
+      return mapInvoice(unwrap(res))
+    },
   },
   calendarEvents: {
     list: async (): Promise<CalendarEvent[]> => {
-      if (!isSupabaseConfigured) return resolve(calendarEvents)
+      if (!isSupabaseConfigured) return resolve([...calendarEvents])
       const res = await supabase!.from('calendar_events').select('*').order('date')
       return unwrap(res).map(mapCalendarEvent)
+    },
+    create: async (input: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> => {
+      const newEvent: CalendarEvent = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        calendarEvents.push(newEvent)
+        return resolve(newEvent)
+      }
+      const res = await supabase!.from('calendar_events').insert(calendarEventToRow(newEvent)).select().single()
+      return mapCalendarEvent(unwrap(res))
     },
   },
   team: {
     list: async (): Promise<TeamMember[]> => {
-      if (!isSupabaseConfigured) return resolve(team)
+      if (!isSupabaseConfigured) return resolve([...team])
       const res = await supabase!.from('team_members').select('*').order('name')
       return unwrap(res).map(mapTeamMember)
     },

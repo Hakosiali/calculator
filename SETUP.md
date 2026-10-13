@@ -155,5 +155,7 @@ pages or components are added later:
   Documents can be created too, but **metadata only** - there's no file
   storage wired up (no Supabase Storage bucket, no upload), so "Téléverser"
   records a document's name/category/size/etc. as if it had been
-  uploaded, the same way the seed data does. Tasks have no edit/delete
-  yet; invoices and calendar events are still read-only.
+  uploaded, the same way the seed data does. Invoices can be created
+  (with an auto-generated `HRCC-YYYY-NNN` number and a dynamic list of
+  line items) and calendar events can be created too. Nothing yet has
+  edit/delete except clients and missions.

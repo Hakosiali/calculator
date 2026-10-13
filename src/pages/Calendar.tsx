@@ -12,10 +12,11 @@ import {
   subMonths,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, MapPin, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, CalendarDays, Plus } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewEventModal } from '../components/calendar/NewEventModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import type { CalendarEventType } from '../types'
@@ -33,8 +34,9 @@ const TYPE_STYLES: Record<CalendarEventType, string> = {
 export function Calendar() {
   const [month, setMonth] = useState(new Date(2026, 9, 1))
   const [selectedDate, setSelectedDate] = useState(format(TODAY, 'yyyy-MM-dd'))
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.calendarEvents.list(), dataClient.clients.list(), dataClient.missions.list()]),
     [],
   )
@@ -60,7 +62,21 @@ export function Calendar() {
 
   return (
     <div>
-      <PageHeader title="Calendrier" description="Réunions, échéances, formations et livraisons" />
+      <PageHeader
+        title="Calendrier"
+        description="Réunions, échéances, formations et livraisons"
+        actions={
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvel événement
+          </button>
+        }
+      />
+
+      <NewEventModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} defaultDate={selectedDate} />
 
       {error && (
         <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

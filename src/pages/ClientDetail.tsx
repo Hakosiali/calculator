@@ -6,6 +6,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
 import { ClientFormModal } from '../components/clients/ClientFormModal'
 import { NewDocumentModal } from '../components/documents/NewDocumentModal'
+import { NewInvoiceModal } from '../components/invoices/NewInvoiceModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
@@ -18,6 +19,7 @@ export function ClientDetail() {
   const navigate = useNavigate()
   const [missionModalOpen, setMissionModalOpen] = useState(false)
   const [documentModalOpen, setDocumentModalOpen] = useState(false)
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -192,7 +194,19 @@ export function ClientDetail() {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Factures ({invoices.length})</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-800">Factures ({invoices.length})</h2>
+              <button
+                onClick={() => setInvoiceModalOpen(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nouvelle facture
+              </button>
+            </div>
+
+            <NewInvoiceModal open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} onCreated={refetch} clientId={client.id} />
+
             {invoices.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">Aucune facture pour ce client.</p>
             ) : (
