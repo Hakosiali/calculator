@@ -5,7 +5,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewClientModal } from '../components/clients/NewClientModal'
+import { ClientFormModal } from '../components/clients/ClientFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles } from '../lib/badges'
@@ -65,7 +65,7 @@ export function Clients() {
         }
       />
 
-      <NewClientModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+      <ClientFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher par nom, secteur, wilaya..." className="sm:max-w-xs" />

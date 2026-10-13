@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewMissionModal } from '../components/missions/NewMissionModal'
+import { MissionFormModal } from '../components/missions/MissionFormModal'
+import { ClientFormModal } from '../components/clients/ClientFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
@@ -13,7 +14,11 @@ import { NotFound } from './NotFound'
 
 export function ClientDetail() {
   const { clientId } = useParams()
-  const [modalOpen, setModalOpen] = useState(false)
+  const navigate = useNavigate()
+  const [missionModalOpen, setMissionModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data, loading, error, refetch } = useAsyncData(async () => {
     if (!clientId) return null
@@ -51,6 +56,23 @@ export function ClientDetail() {
 
   const { client, missions, documents, invoices } = data
 
+  async function handleDelete() {
+    if (!client) return
+    const confirmed = window.confirm(
+      `Supprimer définitivement "${client.name}" ? Ses missions, tâches et factures seront aussi supprimées. Cette action est irréversible.`,
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await dataClient.clients.remove(client.id)
+      navigate('/clients')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+      setDeleting(false)
+    }
+  }
+
   return (
     <div>
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700">
@@ -72,11 +94,21 @@ export function ClientDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="rounded-lg border border-rose-200 px-3.5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+          >
+            {deleting ? 'Suppression...' : 'Supprimer'}
+          </button>
+          <button
+            onClick={() => setEditModalOpen(true)}
+            className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
             Modifier
           </button>
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={() => setMissionModalOpen(true)}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
           >
             Nouvelle mission
@@ -84,7 +116,14 @@ export function ClientDetail() {
         </div>
       </div>
 
-      <NewMissionModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} clientId={client.id} />
+      {deleteError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de supprimer ce client ({deleteError}).
+        </div>
+      )}
+
+      <MissionFormModal open={missionModalOpen} onClose={() => setMissionModalOpen(false)} onSaved={refetch} clientId={client.id} />
+      <ClientFormModal open={editModalOpen} onClose={() => setEditModalOpen(false)} onSaved={refetch} client={client} />
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">

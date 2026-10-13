@@ -1,12 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
 import type { Client, ClientStatus } from '../../types'
 
-interface NewClientModalProps {
+interface ClientFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (client: Client) => void
+  onSaved: (client: Client) => void
+  /** When set, the modal edits this client instead of creating a new one. */
+  client?: Client
 }
 
 const EMPTY_FORM = {
@@ -23,14 +25,38 @@ const EMPTY_FORM = {
   notes: '',
 }
 
+function formFromClient(client: Client): typeof EMPTY_FORM {
+  return {
+    name: client.name,
+    sector: client.sector,
+    wilaya: client.wilaya,
+    address: client.address,
+    contactName: client.contactName,
+    contactRole: client.contactRole,
+    contactEmail: client.contactEmail,
+    contactPhone: client.contactPhone,
+    status: client.status,
+    employeeCount: String(client.employeeCount),
+    notes: client.notes,
+  }
+}
+
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100'
 const labelClass = 'text-xs font-medium text-slate-600'
 
-export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps) {
+export function ClientFormModal({ open, onClose, onSaved, client }: ClientFormModalProps) {
+  const isEdit = Boolean(client)
   const [form, setForm] = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setForm(client ? formFromClient(client) : EMPTY_FORM)
+    setError(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, client?.id])
 
   function update<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -38,8 +64,6 @@ export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps
 
   function handleClose() {
     if (submitting) return
-    setForm(EMPTY_FORM)
-    setError(null)
     onClose()
   }
 
@@ -57,7 +81,7 @@ export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps
     setSubmitting(true)
     setError(null)
     try {
-      const client = await dataClient.clients.create({
+      const fields = {
         name: form.name.trim(),
         sector: form.sector.trim(),
         wilaya: form.wilaya.trim(),
@@ -67,12 +91,13 @@ export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps
         contactEmail: form.contactEmail.trim(),
         contactPhone: form.contactPhone.trim(),
         status: form.status,
-        clientSince: new Date().toISOString().slice(0, 10),
         employeeCount: Number(form.employeeCount) || 0,
         notes: form.notes.trim(),
-      })
-      onCreated(client)
-      setForm(EMPTY_FORM)
+      }
+      const saved = client
+        ? await dataClient.clients.update({ ...client, ...fields })
+        : await dataClient.clients.create({ ...fields, clientSince: new Date().toISOString().slice(0, 10) })
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -82,7 +107,12 @@ export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouveau client" description="Ajouter une entreprise cliente ou prospect.">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? 'Modifier le client' : 'Nouveau client'}
+      description={isEdit ? 'Mettre à jour les informations de ce client.' : 'Ajouter une entreprise cliente ou prospect.'}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className={labelClass}>
@@ -157,7 +187,7 @@ export function NewClientModal({ open, onClose, onCreated }: NewClientModalProps
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Création...' : 'Créer le client'}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer le client'}
           </button>
         </div>
       </form>

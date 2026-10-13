@@ -6,7 +6,7 @@ import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewMissionModal } from '../components/missions/NewMissionModal'
+import { MissionFormModal } from '../components/missions/MissionFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles } from '../lib/badges'
@@ -68,7 +68,7 @@ export function Missions() {
         }
       />
 
-      <NewMissionModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+      <MissionFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher une mission, un client..." className="sm:max-w-xs" />

@@ -143,8 +143,10 @@ pages or components are added later:
 - **No password reset / email confirmation flow in the UI.** The login
   page only handles sign-in. Supabase sends its own reset/confirmation
   emails from the dashboard if you need them in the meantime.
-- **Writes are partial.** "Nouveau client" and "Nouvelle mission" create
-  records (in `dataClient.clients.create()` / `dataClient.missions.create()`,
-  same demo/Supabase-aware pattern as reads). Editing or deleting existing
-  clients/missions, and creating tasks, documents, invoices or calendar
-  events, aren't wired up yet.
+- **Writes cover clients and missions only.** Create, edit and delete are
+  all wired up for those two (`dataClient.clients`/`dataClient.missions`
+  `create()`/`update()`/`remove()`, same demo/Supabase-aware pattern as
+  reads; deleting in demo mode cascades to dependent tasks/invoices and
+  nulls out dependent documents/calendar events, mirroring the `on delete
+  cascade` / `on delete set null` behaviour in `schema.sql`). Tasks,
+  documents, invoices and calendar events are still read-only.

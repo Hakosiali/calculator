@@ -3,11 +3,13 @@ import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
 import type { Client, Mission, MissionStatus, MissionType, Priority, TeamMember } from '../../types'
 
-interface NewMissionModalProps {
+interface MissionFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (mission: Mission) => void
-  /** When set, the client field is locked to this client (e.g. from ClientDetail). */
+  onSaved: (mission: Mission) => void
+  /** When set, the modal edits this mission instead of creating a new one. */
+  mission?: Mission
+  /** When set (create mode only), the client field is locked to this client (e.g. from ClientDetail). */
   clientId?: string
 }
 
@@ -32,7 +34,24 @@ const EMPTY_FORM = {
   startDate: new Date().toISOString().slice(0, 10),
   endDate: '',
   budget: '',
+  progress: '0',
   description: '',
+}
+
+function formFromMission(mission: Mission): typeof EMPTY_FORM {
+  return {
+    title: mission.title,
+    clientId: mission.clientId,
+    type: mission.type,
+    status: mission.status,
+    priority: mission.priority,
+    consultant: mission.consultant,
+    startDate: mission.startDate,
+    endDate: mission.endDate,
+    budget: String(mission.budget),
+    progress: String(mission.progress),
+    description: mission.description,
+  }
 }
 
 const inputClass =
@@ -46,7 +65,8 @@ function nextReference(existing: Mission[]): string {
   return `${prefix}${String(seq).padStart(3, '0')}`
 }
 
-export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissionModalProps) {
+export function MissionFormModal({ open, onClose, onSaved, mission, clientId }: MissionFormModalProps) {
+  const isEdit = Boolean(mission)
   const [form, setForm] = useState({ ...EMPTY_FORM, clientId: clientId ?? '' })
   const [clients, setClients] = useState<Client[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
@@ -55,7 +75,7 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...EMPTY_FORM, clientId: clientId ?? '' })
+    setForm(mission ? formFromMission(mission) : { ...EMPTY_FORM, clientId: clientId ?? '' })
     setError(null)
     Promise.all([dataClient.clients.list(), dataClient.team.list()]).then(([c, t]) => {
       setClients(c)
@@ -63,7 +83,7 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
       setForm((prev) => ({ ...prev, consultant: prev.consultant || t[0]?.name || '' }))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, clientId])
+  }, [open, mission?.id, clientId])
 
   function update<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -88,9 +108,7 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
     setSubmitting(true)
     setError(null)
     try {
-      const [allMissions] = await Promise.all([dataClient.missions.list()])
-      const mission = await dataClient.missions.create({
-        reference: nextReference(allMissions),
+      const fields = {
         title: form.title.trim(),
         clientId: form.clientId,
         type: form.type,
@@ -100,10 +118,20 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
         startDate: form.startDate,
         endDate: form.endDate,
         budget: Number(form.budget) || 0,
-        progress: form.status === 'Terminée' ? 100 : 0,
         description: form.description.trim(),
-      })
-      onCreated(mission)
+      }
+      const saved = mission
+        ? await dataClient.missions.update({
+            ...mission,
+            ...fields,
+            progress: Math.min(100, Math.max(0, Number(form.progress) || 0)),
+          })
+        : await dataClient.missions.create({
+            ...fields,
+            reference: nextReference(await dataClient.missions.list()),
+            progress: form.status === 'Terminée' ? 100 : 0,
+          })
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -113,7 +141,12 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouvelle mission" description="Créer une nouvelle mission pour un client.">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? 'Modifier la mission' : 'Nouvelle mission'}
+      description={isEdit ? 'Mettre à jour les informations de cette mission.' : 'Créer une nouvelle mission pour un client.'}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2">
@@ -126,7 +159,7 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
               className={inputClass}
               value={form.clientId}
               onChange={(e) => update('clientId', e.target.value)}
-              disabled={Boolean(clientId)}
+              disabled={Boolean(clientId) && !isEdit}
               required
             >
               <option value="" disabled>
@@ -179,10 +212,23 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
             Date de fin
             <input type="date" className={inputClass} value={form.endDate} onChange={(e) => update('endDate', e.target.value)} required />
           </label>
-          <label className="sm:col-span-2">
-            <span className={labelClass}>Budget (DZD)</span>
+          <label className={labelClass}>
+            Budget (DZD)
             <input type="number" min={0} className={inputClass} value={form.budget} onChange={(e) => update('budget', e.target.value)} />
           </label>
+          {isEdit && (
+            <label className={labelClass}>
+              Avancement (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={inputClass}
+                value={form.progress}
+                onChange={(e) => update('progress', e.target.value)}
+              />
+            </label>
+          )}
           <label className="sm:col-span-2">
             <span className={labelClass}>Description</span>
             <textarea className={inputClass} rows={3} value={form.description} onChange={(e) => update('description', e.target.value)} />
@@ -205,7 +251,7 @@ export function NewMissionModal({ open, onClose, onCreated, clientId }: NewMissi
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Création...' : 'Créer la mission'}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer la mission'}
           </button>
         </div>
       </form>

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Briefcase, Calendar, Wallet, FileText } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
+import { MissionFormModal } from '../components/missions/MissionFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles, taskStatusStyles } from '../lib/badges'
@@ -15,9 +16,13 @@ const TASK_STATUSES: TaskStatus[] = ['À faire', 'En cours', 'En révision', 'Te
 
 export function MissionDetail() {
   const { missionId } = useParams()
+  const navigate = useNavigate()
   const [taskStatuses, setTaskStatuses] = useState<Record<string, TaskStatus>>({})
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, loading, error, refetch } = useAsyncData(async () => {
     if (!missionId) return null
     const mission = await dataClient.missions.get(missionId)
     if (!mission) return { mission: undefined, client: undefined, tasks: [], documents: [] }
@@ -58,6 +63,22 @@ export function MissionDetail() {
 
   const { mission, client, tasks, documents } = data
 
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Supprimer définitivement la mission "${mission.title}" ? Ses tâches seront aussi supprimées. Cette action est irréversible.`,
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await dataClient.missions.remove(mission.id)
+      navigate('/missions')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+      setDeleting(false)
+    }
+  }
+
   return (
     <div>
       <Link to="/missions" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700">
@@ -85,8 +106,29 @@ export function MissionDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={priorityStyles[mission.priority]}>{mission.priority}</Badge>
             <Badge className={missionStatusStyles[mission.status]}>{mission.status}</Badge>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-lg border border-rose-200 px-3.5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+            >
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </button>
+            <button
+              onClick={() => setEditModalOpen(true)}
+              className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Modifier
+            </button>
           </div>
         </div>
+
+        {deleteError && (
+          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            Impossible de supprimer cette mission ({deleteError}).
+          </div>
+        )}
+
+        <MissionFormModal open={editModalOpen} onClose={() => setEditModalOpen(false)} onSaved={refetch} mission={mission} />
 
         <p className="mt-4 text-sm leading-relaxed text-slate-600">{mission.description}</p>
 

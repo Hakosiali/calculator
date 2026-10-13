@@ -178,6 +178,45 @@ function missionToRow(m: Omit<Mission, 'id'> & { id: string }): MissionRow {
   }
 }
 
+// --- Demo-mode delete cascades --------------------------------------------
+// Mirrors the foreign-key behaviour declared in supabase/schema.sql (mission
+// -> client and task -> mission are `on delete cascade`; document/invoice/
+// calendar_events references are `on delete set null`), so deleting a record
+// leaves the mock data in the same shape a real Supabase delete would.
+
+function cascadeDeleteMission(missionId: string) {
+  for (let i = tasks.length - 1; i >= 0; i--) {
+    if (tasks[i].missionId === missionId) tasks.splice(i, 1)
+  }
+  for (const doc of documents) {
+    if (doc.missionId === missionId) doc.missionId = null
+  }
+  for (const inv of invoices) {
+    if (inv.missionId === missionId) inv.missionId = null
+  }
+  for (const ev of calendarEvents) {
+    if (ev.missionId === missionId) ev.missionId = null
+  }
+}
+
+function cascadeDeleteClient(clientId: string) {
+  for (let i = missions.length - 1; i >= 0; i--) {
+    if (missions[i].clientId === clientId) {
+      cascadeDeleteMission(missions[i].id)
+      missions.splice(i, 1)
+    }
+  }
+  for (let i = invoices.length - 1; i >= 0; i--) {
+    if (invoices[i].clientId === clientId) invoices.splice(i, 1)
+  }
+  for (const doc of documents) {
+    if (doc.clientId === clientId) doc.clientId = null
+  }
+  for (const ev of calendarEvents) {
+    if (ev.clientId === clientId) ev.clientId = null
+  }
+}
+
 export const dataClient = {
   clients: {
     list: async (): Promise<Client[]> => {
@@ -199,6 +238,26 @@ export const dataClient = {
       }
       const res = await supabase!.from('clients').insert(clientToRow(newClient)).select().single()
       return mapClient(unwrap(res))
+    },
+    update: async (client: Client): Promise<Client> => {
+      if (!isSupabaseConfigured) {
+        const i = clients.findIndex((c) => c.id === client.id)
+        if (i === -1) throw new Error('Client introuvable.')
+        clients[i] = client
+        return resolve(client)
+      }
+      const res = await supabase!.from('clients').update(clientToRow(client)).eq('id', client.id).select().single()
+      return mapClient(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        cascadeDeleteClient(id)
+        const i = clients.findIndex((c) => c.id === id)
+        if (i !== -1) clients.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('clients').delete().eq('id', id)
+      if (error) throw new Error(error.message)
     },
   },
   missions: {
@@ -226,6 +285,26 @@ export const dataClient = {
       }
       const res = await supabase!.from('missions').insert(missionToRow(newMission)).select().single()
       return mapMission(unwrap(res))
+    },
+    update: async (mission: Mission): Promise<Mission> => {
+      if (!isSupabaseConfigured) {
+        const i = missions.findIndex((m) => m.id === mission.id)
+        if (i === -1) throw new Error('Mission introuvable.')
+        missions[i] = mission
+        return resolve(mission)
+      }
+      const res = await supabase!.from('missions').update(missionToRow(mission)).eq('id', mission.id).select().single()
+      return mapMission(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        cascadeDeleteMission(id)
+        const i = missions.findIndex((m) => m.id === id)
+        if (i !== -1) missions.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('missions').delete().eq('id', id)
+      if (error) throw new Error(error.message)
     },
   },
   tasks: {
