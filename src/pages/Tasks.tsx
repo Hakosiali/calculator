@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ListChecks, Plus } from 'lucide-react'
+import { ListChecks, Plus, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewTaskModal } from '../components/tasks/NewTaskModal'
+import { TaskFormModal } from '../components/tasks/TaskFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { priorityStyles } from '../lib/badges'
@@ -25,8 +25,11 @@ export function Tasks() {
   const [assignee, setAssignee] = useState('all')
   const [priority, setPriority] = useState<Priority | 'all'>('all')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [overrides, setOverrides] = useState<Record<string, TaskStatus>>({})
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.tasks.list(), dataClient.missions.list(), dataClient.team.list()]),
@@ -67,6 +70,21 @@ export function Tasks() {
     }
   }
 
+  async function handleDelete(task: Task) {
+    const confirmed = window.confirm(`Supprimer définitivement la tâche "${task.title}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingId(task.id)
+    setActionError(null)
+    try {
+      await dataClient.tasks.remove(task.id)
+      refetch()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -83,11 +101,17 @@ export function Tasks() {
         }
       />
 
-      <NewTaskModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+      <TaskFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
+      <TaskFormModal open={Boolean(editingTask)} onClose={() => setEditingTask(null)} onSaved={refetch} task={editingTask ?? undefined} />
 
       {statusError && (
         <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           Impossible de mettre à jour le statut ({statusError}).
+        </div>
+      )}
+      {actionError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          {actionError}
         </div>
       )}
 
@@ -151,7 +175,24 @@ export function Tasks() {
                       <div key={task.id} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-medium text-slate-800">{task.title}</p>
-                          <Badge className={priorityStyles[task.priority]}>{task.priority}</Badge>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Badge className={priorityStyles[task.priority]}>{task.priority}</Badge>
+                            <button
+                              onClick={() => setEditingTask(task)}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                              aria-label="Modifier la tâche"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task)}
+                              disabled={deletingId === task.id}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                              aria-label="Supprimer la tâche"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                         {mission && (
                           <Link

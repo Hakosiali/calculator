@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Briefcase, Calendar, Wallet, FileText, Plus } from 'lucide-react'
+import { ArrowLeft, Briefcase, Calendar, Wallet, FileText, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
-import { NewTaskModal } from '../components/tasks/NewTaskModal'
-import { NewDocumentModal } from '../components/documents/NewDocumentModal'
+import { TaskFormModal } from '../components/tasks/TaskFormModal'
+import { DocumentFormModal } from '../components/documents/DocumentFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles, taskStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
-import type { Task, TaskStatus } from '../types'
+import type { AppDocument, Task, TaskStatus } from '../types'
 import { NotFound } from './NotFound'
 
 const TASK_STATUSES: TaskStatus[] = ['À faire', 'En cours', 'En révision', 'Terminé']
@@ -23,7 +23,12 @@ export function MissionDetail() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [documentModalOpen, setDocumentModalOpen] = useState(false)
+  const [editingDocument, setEditingDocument] = useState<AppDocument | null>(null)
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null)
+  const [itemActionError, setItemActionError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -55,6 +60,36 @@ export function MissionDetail() {
         return next
       })
       setStatusError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    }
+  }
+
+  async function handleDeleteTask(task: Task) {
+    const confirmed = window.confirm(`Supprimer définitivement la tâche "${task.title}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingTaskId(task.id)
+    setItemActionError(null)
+    try {
+      await dataClient.tasks.remove(task.id)
+      refetch()
+    } catch (err) {
+      setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingTaskId(null)
+    }
+  }
+
+  async function handleDeleteDocument(doc: AppDocument) {
+    const confirmed = window.confirm(`Supprimer définitivement le document "${doc.name}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingDocumentId(doc.id)
+    setItemActionError(null)
+    try {
+      await dataClient.documents.remove(doc.id)
+      refetch()
+    } catch (err) {
+      setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingDocumentId(null)
     }
   }
 
@@ -198,11 +233,17 @@ export function MissionDetail() {
             </button>
           </div>
 
-          <NewTaskModal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} onCreated={refetch} missionId={mission.id} />
+          <TaskFormModal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} onSaved={refetch} missionId={mission.id} />
+          <TaskFormModal open={Boolean(editingTask)} onClose={() => setEditingTask(null)} onSaved={refetch} task={editingTask ?? undefined} />
 
           {statusError && (
             <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
               Impossible de mettre à jour le statut ({statusError}).
+            </div>
+          )}
+          {itemActionError && (
+            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              {itemActionError}
             </div>
           )}
 
@@ -223,15 +264,32 @@ export function MissionDetail() {
                         <Badge className={priorityStyles[task.priority]}>{task.priority}</Badge>
                       </div>
                     </div>
-                    <select
-                      value={currentStatus}
-                      onChange={(e) => handleTaskStatusChange(task, e.target.value as TaskStatus)}
-                      className={`shrink-0 rounded-full border-0 px-2.5 py-1 text-xs font-medium ring-1 ring-inset focus:outline-none focus:ring-2 ${taskStatusStyles[currentStatus]}`}
-                    >
-                      {TASK_STATUSES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <select
+                        value={currentStatus}
+                        onChange={(e) => handleTaskStatusChange(task, e.target.value as TaskStatus)}
+                        className={`rounded-full border-0 px-2.5 py-1 text-xs font-medium ring-1 ring-inset focus:outline-none focus:ring-2 ${taskStatusStyles[currentStatus]}`}
+                      >
+                        {TASK_STATUSES.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setEditingTask(task)}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                        aria-label="Modifier la tâche"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task)}
+                        disabled={deletingTaskId === task.id}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                        aria-label="Supprimer la tâche"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </li>
                 )
               })}
@@ -251,12 +309,18 @@ export function MissionDetail() {
             </button>
           </div>
 
-          <NewDocumentModal
+          <DocumentFormModal
             open={documentModalOpen}
             onClose={() => setDocumentModalOpen(false)}
-            onCreated={refetch}
+            onSaved={refetch}
             missionId={mission.id}
             clientId={mission.clientId}
+          />
+          <DocumentFormModal
+            open={Boolean(editingDocument)}
+            onClose={() => setEditingDocument(null)}
+            onSaved={refetch}
+            document={editingDocument ?? undefined}
           />
 
           {documents.length === 0 ? (
@@ -268,9 +332,26 @@ export function MissionDetail() {
               {documents.map((doc) => (
                 <li key={doc.id} className="flex items-center gap-2.5">
                   <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-slate-700">{doc.name}</p>
                     <p className="text-xs text-slate-400">{formatDate(doc.uploadedDate)}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => setEditingDocument(doc)}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                      aria-label="Modifier le document"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDocument(doc)}
+                      disabled={deletingDocumentId === doc.id}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                      aria-label="Supprimer le document"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </li>
               ))}

@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, FileSpreadsheet, FileType2, Presentation, Upload, FolderOpen } from 'lucide-react'
+import { FileText, FileSpreadsheet, FileType2, Presentation, Upload, FolderOpen, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewDocumentModal } from '../components/documents/NewDocumentModal'
+import { DocumentFormModal } from '../components/documents/DocumentFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { formatDate } from '../lib/format'
-import type { DocumentCategory } from '../types'
+import type { AppDocument, DocumentCategory } from '../types'
 
 const CATEGORIES: (DocumentCategory | 'all')[] = [
   'all',
@@ -46,6 +46,9 @@ export function Documents() {
   const [category, setCategory] = useState<DocumentCategory | 'all'>('all')
   const [clientId, setClientId] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingDocument, setEditingDocument] = useState<AppDocument | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.documents.list(), dataClient.clients.list(), dataClient.missions.list()]),
@@ -65,6 +68,21 @@ export function Documents() {
     })
   }, [documents, query, category, clientId])
 
+  async function handleDelete(doc: AppDocument) {
+    const confirmed = window.confirm(`Supprimer définitivement le document "${doc.name}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingId(doc.id)
+    setActionError(null)
+    try {
+      await dataClient.documents.remove(doc.id)
+      refetch()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -81,7 +99,17 @@ export function Documents() {
         }
       />
 
-      <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+      <DocumentFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
+      <DocumentFormModal
+        open={Boolean(editingDocument)}
+        onClose={() => setEditingDocument(null)}
+        onSaved={refetch}
+        document={editingDocument ?? undefined}
+      />
+
+      {actionError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{actionError}</div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un document..." className="sm:max-w-xs" />
@@ -134,6 +162,7 @@ export function Documents() {
                 <th className="px-5 py-3 font-medium">Déposé par</th>
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Taille</th>
+                <th className="px-5 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -171,6 +200,25 @@ export function Documents() {
                     <td className="px-5 py-3 text-slate-600">{doc.uploadedBy}</td>
                     <td className="px-5 py-3 text-slate-600">{formatDate(doc.uploadedDate)}</td>
                     <td className="px-5 py-3 text-slate-500">{formatSize(doc.sizeKb)}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingDocument(doc)}
+                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                          aria-label="Modifier le document"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc)}
+                          disabled={deletingId === doc.id}
+                          className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                          aria-label="Supprimer le document"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}

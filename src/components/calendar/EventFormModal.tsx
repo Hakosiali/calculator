@@ -3,11 +3,13 @@ import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
 import type { CalendarEvent, CalendarEventType, Client, Mission } from '../../types'
 
-interface NewEventModalProps {
+interface EventFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (event: CalendarEvent) => void
-  /** Pre-fills the date field, e.g. with the day currently selected on the calendar. */
+  onSaved: (event: CalendarEvent) => void
+  /** When set, the modal edits this event instead of creating a new one. */
+  event?: CalendarEvent
+  /** Create mode only: pre-fills the date field, e.g. with the day currently selected on the calendar. */
   defaultDate?: string
 }
 
@@ -25,11 +27,24 @@ function emptyForm(defaultDate?: string) {
   }
 }
 
+function formFromEvent(event: CalendarEvent): ReturnType<typeof emptyForm> {
+  return {
+    title: event.title,
+    date: event.date,
+    time: event.time,
+    type: event.type,
+    clientId: event.clientId ?? '',
+    missionId: event.missionId ?? '',
+    location: event.location,
+  }
+}
+
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100'
 const labelClass = 'text-xs font-medium text-slate-600'
 
-export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEventModalProps) {
+export function EventFormModal({ open, onClose, onSaved, event, defaultDate }: EventFormModalProps) {
+  const isEdit = Boolean(event)
   const [form, setForm] = useState(emptyForm(defaultDate))
   const [clients, setClients] = useState<Client[]>([])
   const [missions, setMissions] = useState<Mission[]>([])
@@ -38,14 +53,14 @@ export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEven
 
   useEffect(() => {
     if (!open) return
-    setForm(emptyForm(defaultDate))
+    setForm(event ? formFromEvent(event) : emptyForm(defaultDate))
     setError(null)
     Promise.all([dataClient.clients.list(), dataClient.missions.list()]).then(([c, m]) => {
       setClients(c)
       setMissions(m)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultDate])
+  }, [open, event?.id, defaultDate])
 
   function update<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -68,7 +83,7 @@ export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEven
     setSubmitting(true)
     setError(null)
     try {
-      const event = await dataClient.calendarEvents.create({
+      const fields = {
         title: form.title.trim(),
         date: form.date,
         time: form.time,
@@ -76,8 +91,9 @@ export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEven
         clientId: form.clientId || null,
         missionId: form.missionId || null,
         location: form.location.trim(),
-      })
-      onCreated(event)
+      }
+      const saved = event ? await dataClient.calendarEvents.update({ ...event, ...fields }) : await dataClient.calendarEvents.create(fields)
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -87,7 +103,14 @@ export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEven
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouvel événement" description="Ajouter une réunion, échéance, formation ou livraison.">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? "Modifier l'événement" : 'Nouvel événement'}
+      description={
+        isEdit ? 'Mettre à jour les informations de cet événement.' : 'Ajouter une réunion, échéance, formation ou livraison.'
+      }
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2">
@@ -155,7 +178,7 @@ export function NewEventModal({ open, onClose, onCreated, defaultDate }: NewEven
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Création...' : "Créer l'événement"}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : "Créer l'événement"}
           </button>
         </div>
       </form>

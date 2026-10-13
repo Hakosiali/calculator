@@ -1,33 +1,52 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
-import type { Mission, Priority, Task, TeamMember } from '../../types'
+import type { Mission, Priority, Task, TaskStatus, TeamMember } from '../../types'
 
-interface NewTaskModalProps {
+interface TaskFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (task: Task) => void
-  /** When set, the mission field is locked to this mission (e.g. from MissionDetail). */
+  onSaved: (task: Task) => void
+  /** When set, the modal edits this task instead of creating a new one. */
+  task?: Task
+  /** Create mode only: locks the mission field to this mission (e.g. from MissionDetail). */
   missionId?: string
 }
 
 const PRIORITIES: Priority[] = ['Basse', 'Moyenne', 'Haute', 'Urgente']
+const STATUSES: TaskStatus[] = ['À faire', 'En cours', 'En révision', 'Terminé']
 
-const EMPTY_FORM = {
-  title: '',
-  missionId: '',
-  assignee: '',
-  priority: 'Moyenne' as Priority,
-  dueDate: new Date().toISOString().slice(0, 10),
-  description: '',
+function emptyForm(missionId?: string) {
+  return {
+    title: '',
+    missionId: missionId ?? '',
+    assignee: '',
+    status: 'À faire' as TaskStatus,
+    priority: 'Moyenne' as Priority,
+    dueDate: new Date().toISOString().slice(0, 10),
+    description: '',
+  }
+}
+
+function formFromTask(task: Task): ReturnType<typeof emptyForm> {
+  return {
+    title: task.title,
+    missionId: task.missionId,
+    assignee: task.assignee,
+    status: task.status,
+    priority: task.priority,
+    dueDate: task.dueDate,
+    description: task.description,
+  }
 }
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500'
 const labelClass = 'text-xs font-medium text-slate-600'
 
-export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskModalProps) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, missionId: missionId ?? '' })
+export function TaskFormModal({ open, onClose, onSaved, task, missionId }: TaskFormModalProps) {
+  const isEdit = Boolean(task)
+  const [form, setForm] = useState(emptyForm(missionId))
   const [missions, setMissions] = useState<Mission[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -35,7 +54,7 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...EMPTY_FORM, missionId: missionId ?? '' })
+    setForm(task ? formFromTask(task) : emptyForm(missionId))
     setError(null)
     Promise.all([dataClient.missions.list(), dataClient.team.list()]).then(([m, t]) => {
       setMissions(m)
@@ -43,9 +62,9 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
       setForm((prev) => ({ ...prev, assignee: prev.assignee || t[0]?.name || '' }))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, missionId])
+  }, [open, task?.id, missionId])
 
-  function update<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
+  function update<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -64,16 +83,18 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
     setSubmitting(true)
     setError(null)
     try {
-      const task = await dataClient.tasks.create({
+      const fields = {
         title: form.title.trim(),
         missionId: form.missionId,
         assignee: form.assignee,
-        status: 'À faire',
         priority: form.priority,
         dueDate: form.dueDate,
         description: form.description.trim(),
-      })
-      onCreated(task)
+      }
+      const saved = task
+        ? await dataClient.tasks.update({ ...task, ...fields, status: form.status })
+        : await dataClient.tasks.create({ ...fields, status: 'À faire' })
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -83,7 +104,12 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouvelle tâche" description="Ajouter une tâche à une mission.">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? 'Modifier la tâche' : 'Nouvelle tâche'}
+      description={isEdit ? 'Mettre à jour les informations de cette tâche.' : 'Ajouter une tâche à une mission.'}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2">
@@ -96,7 +122,7 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
               className={inputClass}
               value={form.missionId}
               onChange={(e) => update('missionId', e.target.value)}
-              disabled={Boolean(missionId)}
+              disabled={Boolean(missionId) && !isEdit}
               required
             >
               <option value="" disabled>
@@ -125,6 +151,16 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
               ))}
             </select>
           </label>
+          {isEdit && (
+            <label className={labelClass}>
+              Statut
+              <select className={inputClass} value={form.status} onChange={(e) => update('status', e.target.value as TaskStatus)}>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className={labelClass}>
             Échéance
             <input type="date" className={inputClass} value={form.dueDate} onChange={(e) => update('dueDate', e.target.value)} required />
@@ -151,7 +187,7 @@ export function NewTaskModal({ open, onClose, onCreated, missionId }: NewTaskMod
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Création...' : 'Créer la tâche'}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer la tâche'}
           </button>
         </div>
       </form>

@@ -390,6 +390,15 @@ export const dataClient = {
       const res = await supabase!.from('tasks').update(taskToRow(task)).eq('id', task.id).select().single()
       return mapTask(unwrap(res))
     },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        const i = tasks.findIndex((t) => t.id === id)
+        if (i !== -1) tasks.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('tasks').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
   },
   documents: {
     list: async (): Promise<AppDocument[]> => {
@@ -416,6 +425,25 @@ export const dataClient = {
       const res = await supabase!.from('documents').insert(documentToRow(newDocument)).select().single()
       return mapDocument(unwrap(res))
     },
+    update: async (document: AppDocument): Promise<AppDocument> => {
+      if (!isSupabaseConfigured) {
+        const i = documents.findIndex((d) => d.id === document.id)
+        if (i === -1) throw new Error('Document introuvable.')
+        documents[i] = document
+        return resolve(document)
+      }
+      const res = await supabase!.from('documents').update(documentToRow(document)).eq('id', document.id).select().single()
+      return mapDocument(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        const i = documents.findIndex((d) => d.id === id)
+        if (i !== -1) documents.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('documents').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
   },
   invoices: {
     list: async (): Promise<Invoice[]> => {
@@ -437,6 +465,25 @@ export const dataClient = {
       const res = await supabase!.from('invoices').insert(invoiceToRow(newInvoice)).select().single()
       return mapInvoice(unwrap(res))
     },
+    update: async (invoice: Invoice): Promise<Invoice> => {
+      if (!isSupabaseConfigured) {
+        const i = invoices.findIndex((inv) => inv.id === invoice.id)
+        if (i === -1) throw new Error('Facture introuvable.')
+        invoices[i] = invoice
+        return resolve(invoice)
+      }
+      const res = await supabase!.from('invoices').update(invoiceToRow(invoice)).eq('id', invoice.id).select().single()
+      return mapInvoice(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        const i = invoices.findIndex((inv) => inv.id === id)
+        if (i !== -1) invoices.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('invoices').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
   },
   calendarEvents: {
     list: async (): Promise<CalendarEvent[]> => {
@@ -452,6 +499,25 @@ export const dataClient = {
       }
       const res = await supabase!.from('calendar_events').insert(calendarEventToRow(newEvent)).select().single()
       return mapCalendarEvent(unwrap(res))
+    },
+    update: async (event: CalendarEvent): Promise<CalendarEvent> => {
+      if (!isSupabaseConfigured) {
+        const i = calendarEvents.findIndex((e) => e.id === event.id)
+        if (i === -1) throw new Error('Événement introuvable.')
+        calendarEvents[i] = event
+        return resolve(event)
+      }
+      const res = await supabase!.from('calendar_events').update(calendarEventToRow(event)).eq('id', event.id).select().single()
+      return mapCalendarEvent(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        const i = calendarEvents.findIndex((e) => e.id === id)
+        if (i !== -1) calendarEvents.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('calendar_events').delete().eq('id', id)
+      if (error) throw new Error(error.message)
     },
   },
   team: {

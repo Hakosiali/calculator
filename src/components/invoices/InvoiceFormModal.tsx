@@ -5,11 +5,13 @@ import { dataClient } from '../../lib/dataClient'
 import { formatCurrencyDZD } from '../../lib/format'
 import type { Client, Invoice, InvoiceStatus, Mission } from '../../types'
 
-interface NewInvoiceModalProps {
+interface InvoiceFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (invoice: Invoice) => void
-  /** When set, the client field is locked to this client (e.g. from ClientDetail). */
+  onSaved: (invoice: Invoice) => void
+  /** When set, the modal edits this invoice instead of creating a new one. */
+  invoice?: Invoice
+  /** Create mode only: locks the client field to this client (e.g. from ClientDetail). */
   clientId?: string
 }
 
@@ -40,6 +42,21 @@ function emptyForm(clientId?: string) {
   }
 }
 
+function formFromInvoice(invoice: Invoice): ReturnType<typeof emptyForm> {
+  return {
+    clientId: invoice.clientId,
+    missionId: invoice.missionId ?? '',
+    status: invoice.status,
+    issueDate: invoice.issueDate,
+    dueDate: invoice.dueDate,
+    items: invoice.items.map((it) => ({
+      description: it.description,
+      quantity: String(it.quantity),
+      unitPrice: String(it.unitPrice),
+    })),
+  }
+}
+
 function nextInvoiceNumber(existing: Invoice[]): string {
   const year = new Date().getFullYear()
   const prefix = `HRCC-${year}-`
@@ -51,7 +68,8 @@ const inputClass =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500'
 const labelClass = 'text-xs font-medium text-slate-600'
 
-export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoiceModalProps) {
+export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: InvoiceFormModalProps) {
+  const isEdit = Boolean(invoice)
   const [form, setForm] = useState(emptyForm(clientId))
   const [clients, setClients] = useState<Client[]>([])
   const [missions, setMissions] = useState<Mission[]>([])
@@ -60,14 +78,14 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
 
   useEffect(() => {
     if (!open) return
-    setForm(emptyForm(clientId))
+    setForm(invoice ? formFromInvoice(invoice) : emptyForm(clientId))
     setError(null)
     Promise.all([dataClient.clients.list(), dataClient.missions.list()]).then(([c, m]) => {
       setClients(c)
       setMissions(m)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, clientId])
+  }, [open, invoice?.id, clientId])
 
   function update<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -111,9 +129,7 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
     setSubmitting(true)
     setError(null)
     try {
-      const allInvoices = await dataClient.invoices.list()
-      const invoice = await dataClient.invoices.create({
-        number: nextInvoiceNumber(allInvoices),
+      const fields = {
         clientId: form.clientId,
         missionId: form.missionId || null,
         status: form.status,
@@ -124,8 +140,11 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
           quantity: Number(it.quantity) || 0,
           unitPrice: Number(it.unitPrice) || 0,
         })),
-      })
-      onCreated(invoice)
+      }
+      const saved = invoice
+        ? await dataClient.invoices.update({ ...invoice, ...fields })
+        : await dataClient.invoices.create({ ...fields, number: nextInvoiceNumber(await dataClient.invoices.list()) })
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -135,7 +154,12 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouvelle facture" description="Émettre une facture pour un client.">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
+      description={isEdit ? 'Mettre à jour les informations de cette facture.' : 'Émettre une facture pour un client.'}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className={labelClass}>
@@ -144,7 +168,7 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
               className={inputClass}
               value={form.clientId}
               onChange={(e) => update('clientId', e.target.value)}
-              disabled={Boolean(clientId)}
+              disabled={Boolean(clientId) && !isEdit}
               required
             >
               <option value="" disabled>
@@ -247,7 +271,7 @@ export function NewInvoiceModal({ open, onClose, onCreated, clientId }: NewInvoi
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Création...' : 'Créer la facture'}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer la facture'}
           </button>
         </div>
       </form>

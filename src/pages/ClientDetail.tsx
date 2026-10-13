@@ -1,25 +1,31 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText, Plus } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
 import { ClientFormModal } from '../components/clients/ClientFormModal'
-import { NewDocumentModal } from '../components/documents/NewDocumentModal'
-import { NewInvoiceModal } from '../components/invoices/NewInvoiceModal'
+import { DocumentFormModal } from '../components/documents/DocumentFormModal'
+import { InvoiceFormModal } from '../components/invoices/InvoiceFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate, formatDateLong } from '../lib/format'
 import { invoiceTotal } from '../lib/invoice'
 import { NotFound } from './NotFound'
+import type { AppDocument, Invoice } from '../types'
 
 export function ClientDetail() {
   const { clientId } = useParams()
   const navigate = useNavigate()
   const [missionModalOpen, setMissionModalOpen] = useState(false)
   const [documentModalOpen, setDocumentModalOpen] = useState(false)
+  const [editingDocument, setEditingDocument] = useState<AppDocument | null>(null)
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null)
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
+  const [itemActionError, setItemActionError] = useState<string | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -77,6 +83,36 @@ export function ClientDetail() {
     }
   }
 
+  async function handleDeleteDocument(doc: AppDocument) {
+    const confirmed = window.confirm(`Supprimer définitivement le document "${doc.name}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingDocumentId(doc.id)
+    setItemActionError(null)
+    try {
+      await dataClient.documents.remove(doc.id)
+      refetch()
+    } catch (err) {
+      setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingDocumentId(null)
+    }
+  }
+
+  async function handleDeleteInvoice(inv: Invoice) {
+    const confirmed = window.confirm(`Supprimer définitivement la facture "${inv.number}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingInvoiceId(inv.id)
+    setItemActionError(null)
+    try {
+      await dataClient.invoices.remove(inv.id)
+      refetch()
+    } catch (err) {
+      setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingInvoiceId(null)
+    }
+  }
+
   return (
     <div>
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700">
@@ -124,6 +160,9 @@ export function ClientDetail() {
         <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           Impossible de supprimer ce client ({deleteError}).
         </div>
+      )}
+      {itemActionError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{itemActionError}</div>
       )}
 
       <MissionFormModal open={missionModalOpen} onClose={() => setMissionModalOpen(false)} onSaved={refetch} clientId={client.id} />
@@ -205,7 +244,13 @@ export function ClientDetail() {
               </button>
             </div>
 
-            <NewInvoiceModal open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} onCreated={refetch} clientId={client.id} />
+            <InvoiceFormModal open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} onSaved={refetch} clientId={client.id} />
+            <InvoiceFormModal
+              open={Boolean(editingInvoice)}
+              onClose={() => setEditingInvoice(null)}
+              onSaved={refetch}
+              invoice={editingInvoice ?? undefined}
+            />
 
             {invoices.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">Aucune facture pour ce client.</p>
@@ -218,6 +263,7 @@ export function ClientDetail() {
                       <th className="pb-2 font-medium">Montant</th>
                       <th className="pb-2 font-medium">Échéance</th>
                       <th className="pb-2 font-medium">Statut</th>
+                      <th className="pb-2 font-medium"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -228,6 +274,25 @@ export function ClientDetail() {
                         <td className="py-2.5 pr-4 text-slate-600">{formatDate(inv.dueDate)}</td>
                         <td className="py-2.5">
                           <Badge className={invoiceStatusStyles[inv.status]}>{inv.status}</Badge>
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingInvoice(inv)}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                              aria-label="Modifier la facture"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteInvoice(inv)}
+                              disabled={deletingInvoiceId === inv.id}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                              aria-label="Supprimer la facture"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -249,11 +314,17 @@ export function ClientDetail() {
               </button>
             </div>
 
-            <NewDocumentModal
+            <DocumentFormModal
               open={documentModalOpen}
               onClose={() => setDocumentModalOpen(false)}
-              onCreated={refetch}
+              onSaved={refetch}
               clientId={client.id}
+            />
+            <DocumentFormModal
+              open={Boolean(editingDocument)}
+              onClose={() => setEditingDocument(null)}
+              onSaved={refetch}
+              document={editingDocument ?? undefined}
             />
 
             {documents.length === 0 ? (
@@ -268,7 +339,24 @@ export function ClientDetail() {
                       <FileText className="h-4 w-4 shrink-0 text-slate-400" />
                       <span className="truncate text-sm text-slate-700">{doc.name}</span>
                     </div>
-                    <span className="shrink-0 text-xs text-slate-400">{formatDate(doc.uploadedDate)}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs text-slate-400">{formatDate(doc.uploadedDate)}</span>
+                      <button
+                        onClick={() => setEditingDocument(doc)}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                        aria-label="Modifier le document"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDocument(doc)}
+                        disabled={deletingDocumentId === doc.id}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                        aria-label="Supprimer le document"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

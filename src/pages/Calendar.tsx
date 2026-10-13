@@ -12,14 +12,14 @@ import {
   subMonths,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, MapPin, CalendarDays, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, CalendarDays, Plus, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewEventModal } from '../components/calendar/NewEventModal'
+import { EventFormModal } from '../components/calendar/EventFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
-import type { CalendarEventType } from '../types'
+import type { CalendarEvent, CalendarEventType } from '../types'
 
 const TODAY = new Date(2026, 9, 6)
 
@@ -35,6 +35,9 @@ export function Calendar() {
   const [month, setMonth] = useState(new Date(2026, 9, 1))
   const [selectedDate, setSelectedDate] = useState(format(TODAY, 'yyyy-MM-dd'))
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.calendarEvents.list(), dataClient.clients.list(), dataClient.missions.list()]),
@@ -60,6 +63,21 @@ export function Calendar() {
 
   const selectedEvents = (eventsByDate[selectedDate] ?? []).slice().sort((a, b) => a.time.localeCompare(b.time))
 
+  async function handleDelete(event: CalendarEvent) {
+    const confirmed = window.confirm(`Supprimer définitivement l'événement "${event.title}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingId(event.id)
+    setActionError(null)
+    try {
+      await dataClient.calendarEvents.remove(event.id)
+      refetch()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -76,7 +94,17 @@ export function Calendar() {
         }
       />
 
-      <NewEventModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} defaultDate={selectedDate} />
+      <EventFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} defaultDate={selectedDate} />
+      <EventFormModal
+        open={Boolean(editingEvent)}
+        onClose={() => setEditingEvent(null)}
+        onSaved={refetch}
+        event={editingEvent ?? undefined}
+      />
+
+      {actionError && (
+        <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{actionError}</div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -184,7 +212,24 @@ export function Calendar() {
                     <li key={event.id} className="rounded-lg border border-slate-100 p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-slate-800">{event.title}</p>
-                        <Badge className={TYPE_STYLES[event.type]}>{event.type}</Badge>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Badge className={TYPE_STYLES[event.type]}>{event.type}</Badge>
+                          <button
+                            onClick={() => setEditingEvent(event)}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                            aria-label="Modifier l'événement"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(event)}
+                            disabled={deletingId === event.id}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                            aria-label="Supprimer l'événement"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{event.time !== '00:00' ? event.time : 'Toute la journée'}</p>
                       {client && <p className="mt-1 text-xs text-slate-500">Client : {client.name}</p>}

@@ -1,18 +1,18 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Plus, Receipt, Wallet, Clock, AlertTriangle } from 'lucide-react'
+import { ChevronDown, Plus, Receipt, Wallet, Clock, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { StatCard } from '../components/ui/StatCard'
 import { EmptyState } from '../components/ui/EmptyState'
-import { NewInvoiceModal } from '../components/invoices/NewInvoiceModal'
+import { InvoiceFormModal } from '../components/invoices/InvoiceFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
 import { invoiceTotal } from '../lib/invoice'
-import type { InvoiceStatus } from '../types'
+import type { Invoice, InvoiceStatus } from '../types'
 
 const STATUSES: (InvoiceStatus | 'all')[] = ['all', 'Payée', 'En attente', 'En retard', 'Annulée']
 
@@ -22,6 +22,9 @@ export function Invoices() {
   const [clientId, setClientId] = useState('all')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.invoices.list(), dataClient.clients.list()]),
@@ -48,6 +51,21 @@ export function Invoices() {
     })
   }, [invoices, clients, query, status, clientId])
 
+  async function handleDelete(inv: Invoice) {
+    const confirmed = window.confirm(`Supprimer définitivement la facture "${inv.number}" ? Cette action est irréversible.`)
+    if (!confirmed) return
+    setDeletingId(inv.id)
+    setActionError(null)
+    try {
+      await dataClient.invoices.remove(inv.id)
+      refetch()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -64,7 +82,17 @@ export function Invoices() {
         }
       />
 
-      <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+      <InvoiceFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
+      <InvoiceFormModal
+        open={Boolean(editingInvoice)}
+        onClose={() => setEditingInvoice(null)}
+        onSaved={refetch}
+        invoice={editingInvoice ?? undefined}
+      />
+
+      {actionError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{actionError}</div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Total encaissé" value={formatCurrencyDZD(totals.paid)} icon={Wallet} accent="bg-emerald-50 text-emerald-600" />
@@ -123,6 +151,7 @@ export function Invoices() {
                 <th className="px-5 py-3 font-medium">Échéance</th>
                 <th className="px-5 py-3 font-medium">Montant</th>
                 <th className="px-5 py-3 font-medium">Statut</th>
+                <th className="px-5 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -150,10 +179,29 @@ export function Invoices() {
                       <td className="px-5 py-3">
                         <Badge className={invoiceStatusStyles[inv.status]}>{inv.status}</Badge>
                       </td>
+                      <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingInvoice(inv)}
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                            aria-label="Modifier la facture"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(inv)}
+                            disabled={deletingId === inv.id}
+                            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-rose-600 disabled:opacity-50"
+                            aria-label="Supprimer la facture"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                     {isOpen && (
                       <tr className="bg-slate-50/60">
-                        <td colSpan={7} className="px-5 py-3">
+                        <td colSpan={8} className="px-5 py-3">
                           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Détail des prestations</p>
                           <table className="w-full text-xs">
                             <tbody>

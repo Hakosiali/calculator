@@ -3,35 +3,52 @@ import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
 import type { AppDocument, Client, DocumentCategory, Mission, TeamMember } from '../../types'
 
-interface NewDocumentModalProps {
+interface DocumentFormModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (document: AppDocument) => void
-  /** When set, the client field is locked to this client (e.g. from ClientDetail). */
+  onSaved: (document: AppDocument) => void
+  /** When set, the modal edits this document instead of creating a new one. */
+  document?: AppDocument
+  /** Create mode only: locks the client field to this client (e.g. from ClientDetail). */
   clientId?: string
-  /** When set, the mission field is locked to this mission (e.g. from MissionDetail). */
+  /** Create mode only: locks the mission field to this mission (e.g. from MissionDetail). */
   missionId?: string
 }
 
 const CATEGORIES: DocumentCategory[] = ['Contrat', 'Facture', 'Rapport', 'CV', 'Convention', 'Fiche de paie', 'Autre']
 const FORMATS: AppDocument['format'][] = ['pdf', 'docx', 'xlsx', 'pptx']
 
-const EMPTY_FORM = {
-  name: '',
-  category: 'Autre' as DocumentCategory,
-  clientId: '',
-  missionId: '',
-  uploadedBy: '',
-  format: 'pdf' as AppDocument['format'],
-  sizeKb: '',
+function emptyForm(clientId?: string, missionId?: string) {
+  return {
+    name: '',
+    category: 'Autre' as DocumentCategory,
+    clientId: clientId ?? '',
+    missionId: missionId ?? '',
+    uploadedBy: '',
+    format: 'pdf' as AppDocument['format'],
+    sizeKb: '',
+  }
+}
+
+function formFromDocument(document: AppDocument): ReturnType<typeof emptyForm> {
+  return {
+    name: document.name,
+    category: document.category,
+    clientId: document.clientId ?? '',
+    missionId: document.missionId ?? '',
+    uploadedBy: document.uploadedBy,
+    format: document.format,
+    sizeKb: String(document.sizeKb),
+  }
 }
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500'
 const labelClass = 'text-xs font-medium text-slate-600'
 
-export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId }: NewDocumentModalProps) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, clientId: clientId ?? '', missionId: missionId ?? '' })
+export function DocumentFormModal({ open, onClose, onSaved, document, clientId, missionId }: DocumentFormModalProps) {
+  const isEdit = Boolean(document)
+  const [form, setForm] = useState(emptyForm(clientId, missionId))
   const [clients, setClients] = useState<Client[]>([])
   const [missions, setMissions] = useState<Mission[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
@@ -40,7 +57,7 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...EMPTY_FORM, clientId: clientId ?? '', missionId: missionId ?? '' })
+    setForm(document ? formFromDocument(document) : emptyForm(clientId, missionId))
     setError(null)
     Promise.all([dataClient.clients.list(), dataClient.missions.list(), dataClient.team.list()]).then(([c, m, t]) => {
       setClients(c)
@@ -49,9 +66,9 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
       setForm((prev) => ({ ...prev, uploadedBy: prev.uploadedBy || t[0]?.name || '' }))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, clientId, missionId])
+  }, [open, document?.id, clientId, missionId])
 
-  function update<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
+  function update<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -70,17 +87,19 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
     setSubmitting(true)
     setError(null)
     try {
-      const document = await dataClient.documents.create({
+      const fields = {
         name: form.name.trim(),
         category: form.category,
         clientId: form.clientId || null,
         missionId: form.missionId || null,
         uploadedBy: form.uploadedBy,
-        uploadedDate: new Date().toISOString().slice(0, 10),
         sizeKb: Number(form.sizeKb) || 0,
         format: form.format,
-      })
-      onCreated(document)
+      }
+      const saved = document
+        ? await dataClient.documents.update({ ...document, ...fields })
+        : await dataClient.documents.create({ ...fields, uploadedDate: new Date().toISOString().slice(0, 10) })
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -93,8 +112,12 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
     <Modal
       open={open}
       onClose={handleClose}
-      title="Nouveau document"
-      description="Enregistrer un document (cette démo ne stocke pas le fichier lui-même, seulement ses informations)."
+      title={isEdit ? 'Modifier le document' : 'Nouveau document'}
+      description={
+        isEdit
+          ? 'Mettre à jour les informations de ce document.'
+          : 'Enregistrer un document (cette démo ne stocke pas le fichier lui-même, seulement ses informations).'
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -130,7 +153,7 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
               className={inputClass}
               value={form.clientId}
               onChange={(e) => update('clientId', e.target.value)}
-              disabled={Boolean(clientId)}
+              disabled={Boolean(clientId) && !isEdit}
             >
               <option value="">Aucun</option>
               {clients.map((c) => (
@@ -144,7 +167,7 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
               className={inputClass}
               value={form.missionId}
               onChange={(e) => update('missionId', e.target.value)}
-              disabled={Boolean(missionId)}
+              disabled={Boolean(missionId) && !isEdit}
             >
               <option value="">Aucune</option>
               {missions.map((m) => (
@@ -182,7 +205,7 @@ export function NewDocumentModal({ open, onClose, onCreated, clientId, missionId
             disabled={submitting}
             className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? 'Enregistrement...' : 'Enregistrer le document'}
+            {submitting ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Enregistrer le document'}
           </button>
         </div>
       </form>
