@@ -57,6 +57,22 @@ vars (instead of **"Données : démo (locale)"**), and the app now gates
 every route behind a login screen — see the next section to create an
 account.
 
+## 4b. Or deploy it live, without a local dev setup
+
+No terminal, no `npm run dev`? The GitHub Pages deploy workflow
+(`.github/workflows/deploy-pages.yml`) can build against your Supabase
+project too, so you only ever need a browser:
+
+1. In the GitHub repo: **Settings → Secrets and variables → Actions → New
+   repository secret**. Add two: `SUPABASE_URL` (your project URL) and
+   `SUPABASE_ANON_KEY` (the anon key — never the `service_role` key).
+2. The next push to `main` (or a manual re-run of the workflow from the
+   **Actions** tab) rebuilds the public site against those credentials.
+   The live site then requires login for everyone who visits it, instead
+   of showing the open mock-data demo.
+3. Leave those two secrets unset and nothing changes — the deploy stays
+   in demo mode, exactly as it is today.
+
 ## 5. Enable authentication
 
 As soon as the two env vars above are set, the app requires a signed-in

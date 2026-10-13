@@ -25,6 +25,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # Optional: set these as repo secrets (Settings -> Secrets and
+          # variables -> Actions) to deploy against a real Supabase project
+          # instead of local mock data. Unset, the build stays in demo mode
+          # exactly as before - see SETUP.md.
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true
