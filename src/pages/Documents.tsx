@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, FileSpreadsheet, FileType2, Presentation, Upload, FolderOpen, Pencil, Trash2 } from 'lucide-react'
+import { FileText, FileSpreadsheet, FileType2, Presentation, Upload, FolderOpen, Pencil, Trash2, ArrowDownUp } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
@@ -41,10 +41,37 @@ function formatSize(kb: number) {
   return `${kb} Ko`
 }
 
+type SortKey = 'date-desc' | 'date-asc' | 'name-asc' | 'size-desc' | 'category-asc'
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'date-desc', label: 'Date (plus récent)' },
+  { value: 'date-asc', label: 'Date (plus ancien)' },
+  { value: 'name-asc', label: 'Nom (A-Z)' },
+  { value: 'size-desc', label: 'Taille (plus grande)' },
+  { value: 'category-asc', label: 'Catégorie' },
+]
+
+function sortDocuments(docs: AppDocument[], sortKey: SortKey): AppDocument[] {
+  const sorted = [...docs]
+  switch (sortKey) {
+    case 'date-desc':
+      return sorted.sort((a, b) => b.uploadedDate.localeCompare(a.uploadedDate))
+    case 'date-asc':
+      return sorted.sort((a, b) => a.uploadedDate.localeCompare(b.uploadedDate))
+    case 'name-asc':
+      return sorted.sort((a, b) => a.name.localeCompare(b.name))
+    case 'size-desc':
+      return sorted.sort((a, b) => b.sizeKb - a.sizeKb)
+    case 'category-asc':
+      return sorted.sort((a, b) => a.category.localeCompare(b.category))
+  }
+}
+
 export function Documents() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<DocumentCategory | 'all'>('all')
   const [clientId, setClientId] = useState('all')
+  const [sortKey, setSortKey] = useState<SortKey>('date-desc')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDocument, setEditingDocument] = useState<AppDocument | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -60,13 +87,14 @@ export function Documents() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return documents.filter((d) => {
+    const matches = documents.filter((d) => {
       const matchesQuery = !q || d.name.toLowerCase().includes(q)
       const matchesCategory = category === 'all' || d.category === category
       const matchesClient = clientId === 'all' || d.clientId === clientId
       return matchesQuery && matchesCategory && matchesClient
     })
-  }, [documents, query, category, clientId])
+    return sortDocuments(matches, sortKey)
+  }, [documents, query, category, clientId, sortKey])
 
   async function handleDelete(doc: AppDocument) {
     const confirmed = window.confirm(`Supprimer définitivement le document "${doc.name}" ? Cette action est irréversible.`)
@@ -132,6 +160,18 @@ export function Documents() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        <label className="flex items-center gap-1.5 text-sm text-slate-500">
+          <ArrowDownUp className="h-4 w-4 text-slate-400" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && (

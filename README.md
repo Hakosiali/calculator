@@ -41,11 +41,12 @@ src/
     format.ts         Formatage (devise DZD, dates, initiales...)
     badges.ts         Classes de couleur pour les badges de statut
     assistant.ts      Logique de réponse de l'Assistant IA (mock)
+    notifications.ts  Calcule les alertes (tâches/factures en retard, événements à venir)
   hooks/
     useAsyncData.ts   Hook { data, loading, error } pour consommer dataClient
   components/
     auth/        RequireAuth (protection des routes)
-    layout/      Sidebar, Topbar, AppLayout
+    layout/      Sidebar, Topbar, NotificationBell, AppLayout
     ui/          Composants réutilisables (Badge, Avatar, StatCard, ...)
   pages/
     Login.tsx    Écran de connexion

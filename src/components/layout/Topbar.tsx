@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, Briefcase, Users } from 'lucide-react'
+import { Menu, Search, Briefcase, Users } from 'lucide-react'
 import { dataClient } from '../../lib/dataClient'
 import { useAsyncData } from '../../hooks/useAsyncData'
+import { NotificationBell } from './NotificationBell'
 
 interface TopbarProps {
   onMenuClick: () => void
@@ -105,10 +106,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         )}
       </div>
 
-      <button className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="Notifications">
-        <Bell className="h-5 w-5" />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
-      </button>
+      <NotificationBell />
     </header>
   )
 }

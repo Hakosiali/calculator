@@ -273,7 +273,7 @@ function cascadeDeleteClient(clientId: string) {
 export const dataClient = {
   clients: {
     list: async (): Promise<Client[]> => {
-      if (!isSupabaseConfigured) return resolve([...clients])
+      if (!isSupabaseConfigured) return resolve([...clients].sort((a, b) => a.name.localeCompare(b.name)))
       const res = await supabase!.from('clients').select('*').order('name')
       return unwrap(res).map(mapClient)
     },
@@ -315,7 +315,7 @@ export const dataClient = {
   },
   missions: {
     list: async (): Promise<Mission[]> => {
-      if (!isSupabaseConfigured) return resolve([...missions])
+      if (!isSupabaseConfigured) return resolve([...missions].sort((a, b) => b.startDate.localeCompare(a.startDate)))
       const res = await supabase!.from('missions').select('*').order('start_date', { ascending: false })
       return unwrap(res).map(mapMission)
     },
@@ -402,7 +402,7 @@ export const dataClient = {
   },
   documents: {
     list: async (): Promise<AppDocument[]> => {
-      if (!isSupabaseConfigured) return resolve([...documents])
+      if (!isSupabaseConfigured) return resolve([...documents].sort((a, b) => b.uploadedDate.localeCompare(a.uploadedDate)))
       const res = await supabase!.from('documents').select('*').order('uploaded_date', { ascending: false })
       return unwrap(res).map(mapDocument)
     },
@@ -447,7 +447,7 @@ export const dataClient = {
   },
   invoices: {
     list: async (): Promise<Invoice[]> => {
-      if (!isSupabaseConfigured) return resolve([...invoices])
+      if (!isSupabaseConfigured) return resolve([...invoices].sort((a, b) => b.issueDate.localeCompare(a.issueDate)))
       const res = await supabase!.from('invoices').select('*').order('issue_date', { ascending: false })
       return unwrap(res).map(mapInvoice)
     },
@@ -487,7 +487,9 @@ export const dataClient = {
   },
   calendarEvents: {
     list: async (): Promise<CalendarEvent[]> => {
-      if (!isSupabaseConfigured) return resolve([...calendarEvents])
+      if (!isSupabaseConfigured) {
+        return resolve([...calendarEvents].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)))
+      }
       const res = await supabase!.from('calendar_events').select('*').order('date')
       return unwrap(res).map(mapCalendarEvent)
     },
@@ -522,7 +524,7 @@ export const dataClient = {
   },
   team: {
     list: async (): Promise<TeamMember[]> => {
-      if (!isSupabaseConfigured) return resolve([...team])
+      if (!isSupabaseConfigured) return resolve([...team].sort((a, b) => a.name.localeCompare(b.name)))
       const res = await supabase!.from('team_members').select('*').order('name')
       return unwrap(res).map(mapTeamMember)
     },
