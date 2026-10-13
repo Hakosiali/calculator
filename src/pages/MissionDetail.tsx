@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Briefcase, Calendar, Wallet, FileText } from 'lucide-react'
+import { ArrowLeft, Briefcase, Calendar, Wallet, FileText, Plus } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
+import { NewTaskModal } from '../components/tasks/NewTaskModal'
+import { NewDocumentModal } from '../components/documents/NewDocumentModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { missionStatusStyles, priorityStyles, taskStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
-import type { TaskStatus } from '../types'
+import type { Task, TaskStatus } from '../types'
 import { NotFound } from './NotFound'
 
 const TASK_STATUSES: TaskStatus[] = ['À faire', 'En cours', 'En révision', 'Terminé']
@@ -18,7 +20,10 @@ export function MissionDetail() {
   const { missionId } = useParams()
   const navigate = useNavigate()
   const [taskStatuses, setTaskStatuses] = useState<Record<string, TaskStatus>>({})
+  const [statusError, setStatusError] = useState<string | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [documentModalOpen, setDocumentModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -36,6 +41,21 @@ export function MissionDetail() {
 
   function statusFor(taskId: string, fallback: TaskStatus) {
     return taskStatuses[taskId] ?? fallback
+  }
+
+  async function handleTaskStatusChange(task: Task, status: TaskStatus) {
+    setTaskStatuses((prev) => ({ ...prev, [task.id]: status }))
+    setStatusError(null)
+    try {
+      await dataClient.tasks.update({ ...task, status })
+    } catch (err) {
+      setTaskStatuses((prev) => {
+        const next = { ...prev }
+        delete next[task.id]
+        return next
+      })
+      setStatusError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    }
   }
 
   if (loading) {
@@ -167,7 +187,25 @@ export function MissionDetail() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-800">Tâches ({tasks.length})</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-800">Tâches ({tasks.length})</h2>
+            <button
+              onClick={() => setTaskModalOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nouvelle tâche
+            </button>
+          </div>
+
+          <NewTaskModal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} onCreated={refetch} missionId={mission.id} />
+
+          {statusError && (
+            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              Impossible de mettre à jour le statut ({statusError}).
+            </div>
+          )}
+
           {tasks.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">Aucune tâche associée à cette mission.</p>
           ) : (
@@ -187,9 +225,7 @@ export function MissionDetail() {
                     </div>
                     <select
                       value={currentStatus}
-                      onChange={(e) =>
-                        setTaskStatuses((prev) => ({ ...prev, [task.id]: e.target.value as TaskStatus }))
-                      }
+                      onChange={(e) => handleTaskStatusChange(task, e.target.value as TaskStatus)}
                       className={`shrink-0 rounded-full border-0 px-2.5 py-1 text-xs font-medium ring-1 ring-inset focus:outline-none focus:ring-2 ${taskStatusStyles[currentStatus]}`}
                     >
                       {TASK_STATUSES.map((s) => (
@@ -204,7 +240,25 @@ export function MissionDetail() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-800">Documents ({documents.length})</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-800">Documents ({documents.length})</h2>
+            <button
+              onClick={() => setDocumentModalOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Téléverser
+            </button>
+          </div>
+
+          <NewDocumentModal
+            open={documentModalOpen}
+            onClose={() => setDocumentModalOpen(false)}
+            onCreated={refetch}
+            missionId={mission.id}
+            clientId={mission.clientId}
+          />
+
           {documents.length === 0 ? (
             <div className="mt-3">
               <EmptyState icon={FileText} title="Aucun document" />

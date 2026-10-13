@@ -143,10 +143,17 @@ pages or components are added later:
 - **No password reset / email confirmation flow in the UI.** The login
   page only handles sign-in. Supabase sends its own reset/confirmation
   emails from the dashboard if you need them in the meantime.
-- **Writes cover clients and missions only.** Create, edit and delete are
-  all wired up for those two (`dataClient.clients`/`dataClient.missions`
-  `create()`/`update()`/`remove()`, same demo/Supabase-aware pattern as
-  reads; deleting in demo mode cascades to dependent tasks/invoices and
-  nulls out dependent documents/calendar events, mirroring the `on delete
-  cascade` / `on delete set null` behaviour in `schema.sql`). Tasks,
-  documents, invoices and calendar events are still read-only.
+- **Writes cover clients, missions, tasks and documents.** Clients and
+  missions have full create/edit/delete (`dataClient.clients`/
+  `dataClient.missions` `create()`/`update()`/`remove()`; deleting in demo
+  mode cascades to dependent tasks/invoices and nulls out dependent
+  documents/calendar events, mirroring the `on delete cascade` / `on
+  delete set null` behaviour in `schema.sql`). Tasks can be created and
+  have their status changed (the Kanban board's status dropdown on
+  `/tasks` and the status dropdown on a mission's detail page both persist
+  through `dataClient.tasks.update()` now, not just local UI state).
+  Documents can be created too, but **metadata only** - there's no file
+  storage wired up (no Supabase Storage bucket, no upload), so "Téléverser"
+  records a document's name/category/size/etc. as if it had been
+  uploaded, the same way the seed data does. Tasks have no edit/delete
+  yet; invoices and calendar events are still read-only.

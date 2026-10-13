@@ -5,6 +5,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewDocumentModal } from '../components/documents/NewDocumentModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { formatDate } from '../lib/format'
@@ -44,8 +45,9 @@ export function Documents() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<DocumentCategory | 'all'>('all')
   const [clientId, setClientId] = useState('all')
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.documents.list(), dataClient.clients.list(), dataClient.missions.list()]),
     [],
   )
@@ -69,12 +71,17 @@ export function Documents() {
         title="Documents"
         description={loading ? 'Chargement...' : `${documents.length} fichiers (contrats, rapports, factures, CV...)`}
         actions={
-          <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
             <Upload className="h-4 w-4" />
             Téléverser
           </button>
         }
       />
+
+      <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un document..." className="sm:max-w-xs" />

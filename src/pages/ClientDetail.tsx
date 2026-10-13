@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText, Plus } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
 import { ClientFormModal } from '../components/clients/ClientFormModal'
+import { NewDocumentModal } from '../components/documents/NewDocumentModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
@@ -16,6 +17,7 @@ export function ClientDetail() {
   const { clientId } = useParams()
   const navigate = useNavigate()
   const [missionModalOpen, setMissionModalOpen] = useState(false)
+  const [documentModalOpen, setDocumentModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -222,7 +224,24 @@ export function ClientDetail() {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Documents ({documents.length})</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-800">Documents ({documents.length})</h2>
+              <button
+                onClick={() => setDocumentModalOpen(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Téléverser
+              </button>
+            </div>
+
+            <NewDocumentModal
+              open={documentModalOpen}
+              onClose={() => setDocumentModalOpen(false)}
+              onCreated={refetch}
+              clientId={client.id}
+            />
+
             {documents.length === 0 ? (
               <div className="mt-3">
                 <EmptyState icon={FileText} title="Aucun document" description="Les documents liés à ce client apparaîtront ici." />

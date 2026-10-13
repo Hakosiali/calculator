@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ListChecks } from 'lucide-react'
+import { ListChecks, Plus } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
+import { NewTaskModal } from '../components/tasks/NewTaskModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { priorityStyles } from '../lib/badges'
 import { formatDate, daysUntil } from '../lib/format'
-import type { Priority, TaskStatus } from '../types'
+import type { Priority, Task, TaskStatus } from '../types'
 
 const COLUMNS: { status: TaskStatus; accent: string }[] = [
   { status: 'À faire', accent: 'border-t-slate-400' },
@@ -23,9 +24,11 @@ export function Tasks() {
   const [query, setQuery] = useState('')
   const [assignee, setAssignee] = useState('all')
   const [priority, setPriority] = useState<Priority | 'all'>('all')
+  const [modalOpen, setModalOpen] = useState(false)
   const [overrides, setOverrides] = useState<Record<string, TaskStatus>>({})
+  const [statusError, setStatusError] = useState<string | null>(null)
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.tasks.list(), dataClient.missions.list(), dataClient.team.list()]),
     [],
   )
@@ -49,9 +52,44 @@ export function Tasks() {
     return overrides[id] ?? fallback
   }
 
+  async function handleStatusChange(task: Task, status: TaskStatus) {
+    setOverrides((prev) => ({ ...prev, [task.id]: status }))
+    setStatusError(null)
+    try {
+      await dataClient.tasks.update({ ...task, status })
+    } catch (err) {
+      setOverrides((prev) => {
+        const next = { ...prev }
+        delete next[task.id]
+        return next
+      })
+      setStatusError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    }
+  }
+
   return (
     <div>
-      <PageHeader title="Tâches" description={loading ? 'Chargement...' : `${tasks.length} tâches réparties sur toutes les missions`} />
+      <PageHeader
+        title="Tâches"
+        description={loading ? 'Chargement...' : `${tasks.length} tâches réparties sur toutes les missions`}
+        actions={
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle tâche
+          </button>
+        }
+      />
+
+      <NewTaskModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={refetch} />
+
+      {statusError && (
+        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          Impossible de mettre à jour le statut ({statusError}).
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher une tâche..." className="sm:max-w-xs" />
@@ -134,9 +172,7 @@ export function Tasks() {
                         </div>
                         <select
                           value={effectiveStatus(task.id, task.status)}
-                          onChange={(e) =>
-                            setOverrides((prev) => ({ ...prev, [task.id]: e.target.value as TaskStatus }))
-                          }
+                          onChange={(e) => handleStatusChange(task, e.target.value as TaskStatus)}
                           className="mt-2.5 w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
                         >
                           {COLUMNS.map((c) => (

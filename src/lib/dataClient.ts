@@ -178,6 +178,33 @@ function missionToRow(m: Omit<Mission, 'id'> & { id: string }): MissionRow {
   }
 }
 
+function taskToRow(t: Omit<Task, 'id'> & { id: string }): TaskRow {
+  return {
+    id: t.id,
+    title: t.title,
+    mission_id: t.missionId,
+    assignee: t.assignee,
+    status: t.status,
+    priority: t.priority,
+    due_date: t.dueDate,
+    description: t.description,
+  }
+}
+
+function documentToRow(d: Omit<AppDocument, 'id'> & { id: string }): DocumentRow {
+  return {
+    id: d.id,
+    name: d.name,
+    category: d.category,
+    client_id: d.clientId,
+    mission_id: d.missionId,
+    uploaded_by: d.uploadedBy,
+    uploaded_date: d.uploadedDate,
+    size_kb: d.sizeKb,
+    format: d.format,
+  }
+}
+
 // --- Demo-mode delete cascades --------------------------------------------
 // Mirrors the foreign-key behaviour declared in supabase/schema.sql (mission
 // -> client and task -> mission are `on delete cascade`; document/invoice/
@@ -318,6 +345,25 @@ export const dataClient = {
       const res = await supabase!.from('tasks').select('*').eq('mission_id', missionId)
       return unwrap(res).map(mapTask)
     },
+    create: async (input: Omit<Task, 'id'>): Promise<Task> => {
+      const newTask: Task = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        tasks.push(newTask)
+        return resolve(newTask)
+      }
+      const res = await supabase!.from('tasks').insert(taskToRow(newTask)).select().single()
+      return mapTask(unwrap(res))
+    },
+    update: async (task: Task): Promise<Task> => {
+      if (!isSupabaseConfigured) {
+        const i = tasks.findIndex((t) => t.id === task.id)
+        if (i === -1) throw new Error('Tâche introuvable.')
+        tasks[i] = task
+        return resolve(task)
+      }
+      const res = await supabase!.from('tasks').update(taskToRow(task)).eq('id', task.id).select().single()
+      return mapTask(unwrap(res))
+    },
   },
   documents: {
     list: async (): Promise<AppDocument[]> => {
@@ -334,6 +380,15 @@ export const dataClient = {
       if (!isSupabaseConfigured) return resolve(documents.filter((d) => d.missionId === missionId))
       const res = await supabase!.from('documents').select('*').eq('mission_id', missionId)
       return unwrap(res).map(mapDocument)
+    },
+    create: async (input: Omit<AppDocument, 'id'>): Promise<AppDocument> => {
+      const newDocument: AppDocument = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        documents.push(newDocument)
+        return resolve(newDocument)
+      }
+      const res = await supabase!.from('documents').insert(documentToRow(newDocument)).select().single()
+      return mapDocument(unwrap(res))
     },
   },
   invoices: {
