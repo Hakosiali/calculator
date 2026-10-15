@@ -82,6 +82,8 @@ export interface AppDocument {
   uploadedDate: string
   sizeKb: number
   format: 'pdf' | 'docx' | 'xlsx' | 'pptx'
+  /** Path of the file in the Supabase Storage "documents" bucket, or null for metadata-only records (e.g. demo data). */
+  storagePath?: string | null
 }
 
 export type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Annulée'

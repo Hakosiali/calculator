@@ -102,6 +102,7 @@ function mapDocument(row: DocumentRow): AppDocument {
     uploadedDate: row.uploaded_date,
     sizeKb: row.size_kb,
     format: row.format as AppDocument['format'],
+    storagePath: row.storage_path,
   }
 }
 
@@ -202,6 +203,7 @@ function documentToRow(d: Omit<AppDocument, 'id'> & { id: string }): DocumentRow
     uploaded_date: d.uploadedDate,
     size_kb: d.sizeKb,
     format: d.format,
+    storage_path: d.storagePath ?? null,
   }
 }
 
@@ -444,7 +446,7 @@ export const dataClient = {
       const res = await supabase!.from('documents').update(documentToRow(document)).eq('id', document.id).select().single()
       return mapDocument(unwrap(res))
     },
-    remove: async (id: string): Promise<void> => {
+    remove: async (id: string, storagePath?: string | null): Promise<void> => {
       if (!isSupabaseConfigured) {
         const i = documents.findIndex((d) => d.id === id)
         if (i !== -1) documents.splice(i, 1)
@@ -452,6 +454,28 @@ export const dataClient = {
       }
       const { error } = await supabase!.from('documents').delete().eq('id', id)
       if (error) throw new Error(error.message)
+      if (storagePath) await supabase!.storage.from('documents').remove([storagePath])
+    },
+    /** Uploads a file to the "documents" Storage bucket and returns its path. Requires Supabase (see SETUP.md). */
+    uploadFile: async (file: File): Promise<string> => {
+      if (!isSupabaseConfigured) throw new Error('Le stockage de fichiers nécessite un projet Supabase connecté.')
+      const path = `${crypto.randomUUID()}-${file.name}`
+      const { error } = await supabase!.storage.from('documents').upload(path, file)
+      if (error) throw new Error(error.message)
+      return path
+    },
+    /** Deletes a file from the "documents" Storage bucket, e.g. when replacing it on edit. */
+    removeFile: async (path: string): Promise<void> => {
+      if (!isSupabaseConfigured) return resolve(undefined)
+      const { error } = await supabase!.storage.from('documents').remove([path])
+      if (error) throw new Error(error.message)
+    },
+    /** Returns a short-lived signed URL to download/view a stored file. */
+    getDownloadUrl: async (path: string): Promise<string> => {
+      if (!isSupabaseConfigured) throw new Error('Le stockage de fichiers nécessite un projet Supabase connecté.')
+      const { data, error } = await supabase!.storage.from('documents').createSignedUrl(path, 60)
+      if (error || !data) throw new Error(error?.message ?? 'Impossible de générer le lien de téléchargement.')
+      return data.signedUrl
     },
   },
   invoices: {

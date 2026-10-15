@@ -63,6 +63,7 @@ type DocumentRow = {
   uploaded_date: string
   size_kb: number
   format: string
+  storage_path: string | null
 }
 
 type InvoiceRow = {

@@ -116,6 +116,29 @@ To add many real clients at once instead of one at a time, use the
 **Importer** button on the Clients page — it accepts a CSV (download the
 template from that same dialog for the expected columns).
 
+## 7. Real file storage for documents
+
+By default (and for the GitHub Pages demo) documents are metadata only —
+"Téléverser" records a name/category/size as if a file had been uploaded,
+with nothing actually stored. To make it real:
+
+1. In your Supabase project: **Storage → New bucket**, name it exactly
+   `documents`, and leave **Public bucket** off (it holds client HR
+   documents, so access should require login like everything else).
+2. In the **SQL Editor**, run `supabase/schema.sql` again — it's
+   idempotent, so re-running it on an existing project only adds the new
+   `documents.storage_path` column and the matching Storage access policy
+   without touching your existing data.
+
+Once both are done, the document form switches from manual metadata entry
+to a real file picker: picking a file uploads it to that bucket and
+auto-fills the name/format/size, and a **Télécharger** button appears
+next to documents that have a stored file (via a short-lived signed URL,
+since the bucket is private). Replacing a file on edit deletes the old
+one from storage; deleting a document's row does not currently delete its
+file from storage (a rare, low-cost edge case for an internal tool — clean
+it up from the Storage tab if it matters).
+
 ## How the wiring works
 
 - `src/lib/supabaseClient.ts` creates the client and exports
@@ -168,11 +191,12 @@ pages or components are added later:
   documents, invoices or calendar events as a foreign key, so deleting
   those is a plain removal. The Kanban status dropdown on `/tasks` and
   the status dropdown on a mission's detail page persist through
-  `dataClient.tasks.update()`, not just local UI state. Documents are
-  **metadata only** - there's no file storage wired up (no Supabase
-  Storage bucket, no upload), so "Téléverser" records a document's
-  name/category/size/etc. as if it had been uploaded, the same way the
-  seed data does. Invoice numbers auto-generate as `HRCC-YYYY-NNN` and
+  `dataClient.tasks.update()`, not just local UI state. Documents store a
+  real file in Supabase Storage once the `documents` bucket is set up
+  (see **7. Real file storage for documents** above); without that bucket
+  (including the public GitHub Pages demo), "Téléverser" records a
+  document's name/category/size/etc. as if it had been uploaded, the same
+  way the seed data does. Invoice numbers auto-generate as `HRCC-YYYY-NNN` and
   the line-item list is editable (add/remove rows) in both create and
   edit. Team members have create/remove (no edit) from the **Équipe**
   page — removing someone doesn't touch missions/tasks already assigned

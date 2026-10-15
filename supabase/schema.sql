@@ -56,8 +56,13 @@ create table if not exists documents (
   uploaded_by text not null,
   uploaded_date date not null,
   size_kb integer not null default 0,
-  format text not null
+  format text not null,
+  storage_path text
 );
+-- `alter ... if not exists` so re-running this script against a project
+-- created before the "storage_path" column existed adds it in place,
+-- instead of needing a separate migration.
+alter table documents add column if not exists storage_path text;
 create index if not exists documents_client_id_idx on documents (client_id);
 create index if not exists documents_mission_id_idx on documents (mission_id);
 
@@ -125,3 +130,12 @@ begin
     );
   end loop;
 end $$;
+
+-- Same "signed in or not" rule for the "documents" Storage bucket (see
+-- SETUP.md "7. Real file storage"), so uploaded files get the same access
+-- control as every table above. Only takes effect once that bucket exists.
+drop policy if exists "authenticated_read_write_documents" on storage.objects;
+create policy "authenticated_read_write_documents"
+on storage.objects for all
+using (bucket_id = 'documents' and auth.uid() is not null)
+with check (bucket_id = 'documents' and auth.uid() is not null);

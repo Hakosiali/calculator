@@ -1,6 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Upload } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
+import { isSupabaseConfigured } from '../../lib/supabaseClient'
 import type { AppDocument, Client, DocumentCategory, Mission, TeamMember } from '../../types'
 
 interface DocumentFormModalProps {
@@ -17,6 +19,12 @@ interface DocumentFormModalProps {
 
 const CATEGORIES: DocumentCategory[] = ['Contrat', 'Facture', 'Rapport', 'CV', 'Convention', 'Fiche de paie', 'Autre']
 const FORMATS: AppDocument['format'][] = ['pdf', 'docx', 'xlsx', 'pptx']
+const KNOWN_EXTENSIONS: Record<string, AppDocument['format']> = { pdf: 'pdf', docx: 'docx', xlsx: 'xlsx', pptx: 'pptx' }
+
+function formatFromFileName(name: string): AppDocument['format'] | null {
+  const ext = name.split('.').pop()?.toLowerCase()
+  return (ext && KNOWN_EXTENSIONS[ext]) || null
+}
 
 function emptyForm(clientId?: string, missionId?: string) {
   return {
@@ -54,10 +62,14 @@ export function DocumentFormModal({ open, onClose, onSaved, document, clientId, 
   const [team, setTeam] = useState<TeamMember[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
     setForm(document ? formFromDocument(document) : emptyForm(clientId, missionId))
+    setFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setError(null)
     Promise.all([dataClient.clients.list(), dataClient.missions.list(), dataClient.team.list()]).then(([c, m, t]) => {
       setClients(c)
@@ -77,6 +89,19 @@ export function DocumentFormModal({ open, onClose, onSaved, document, clientId, 
     onClose()
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0] ?? null
+    setFile(selected)
+    if (!selected) return
+    const format = formatFromFileName(selected.name)
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : selected.name,
+      sizeKb: String(Math.max(1, Math.round(selected.size / 1024))),
+      format: format ?? prev.format,
+    }))
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form.name.trim() || !form.uploadedBy) {
@@ -87,6 +112,13 @@ export function DocumentFormModal({ open, onClose, onSaved, document, clientId, 
     setSubmitting(true)
     setError(null)
     try {
+      let storagePath = document?.storagePath ?? null
+      if (file && isSupabaseConfigured) {
+        storagePath = await dataClient.documents.uploadFile(file)
+        if (document?.storagePath) {
+          dataClient.documents.removeFile(document.storagePath).catch(() => {})
+        }
+      }
       const fields = {
         name: form.name.trim(),
         category: form.category,
@@ -95,6 +127,7 @@ export function DocumentFormModal({ open, onClose, onSaved, document, clientId, 
         uploadedBy: form.uploadedBy,
         sizeKb: Number(form.sizeKb) || 0,
         format: form.format,
+        storagePath,
       }
       const saved = document
         ? await dataClient.documents.update({ ...document, ...fields })
@@ -114,12 +147,25 @@ export function DocumentFormModal({ open, onClose, onSaved, document, clientId, 
       onClose={handleClose}
       title={isEdit ? 'Modifier le document' : 'Nouveau document'}
       description={
-        isEdit
-          ? 'Mettre à jour les informations de ce document.'
-          : 'Enregistrer un document (cette démo ne stocke pas le fichier lui-même, seulement ses informations).'
+        isSupabaseConfigured
+          ? isEdit
+            ? 'Mettre à jour les informations de ce document, ou le remplacer par un nouveau fichier.'
+            : 'Choisir un fichier à téléverser dans le stockage Supabase.'
+          : isEdit
+            ? 'Mettre à jour les informations de ce document.'
+            : 'Enregistrer un document (démo locale : aucun projet Supabase connecté, le fichier lui-même n\'est pas stocké, seulement ses informations).'
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isSupabaseConfigured && (
+          <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-6 text-center hover:border-indigo-300 hover:bg-indigo-50/30">
+            <Upload className="h-6 w-6 text-slate-400" />
+            <span className="text-sm text-slate-600">
+              {file?.name ?? (isEdit ? 'Cliquez pour remplacer le fichier (optionnel)' : 'Cliquez pour choisir un fichier')}
+            </span>
+            <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
+          </label>
+        )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2">
             <span className={labelClass}>Nom du fichier</span>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, MapPin, Users, Calendar, Building2, FileText, Plus, Pencil, Trash2, Download } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MissionFormModal } from '../components/missions/MissionFormModal'
@@ -83,13 +83,23 @@ export function ClientDetail() {
     }
   }
 
+  async function handleDownloadDocument(doc: AppDocument) {
+    if (!doc.storagePath) return
+    try {
+      const url = await dataClient.documents.getDownloadUrl(doc.storagePath)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    }
+  }
+
   async function handleDeleteDocument(doc: AppDocument) {
     const confirmed = window.confirm(`Supprimer définitivement le document "${doc.name}" ? Cette action est irréversible.`)
     if (!confirmed) return
     setDeletingDocumentId(doc.id)
     setItemActionError(null)
     try {
-      await dataClient.documents.remove(doc.id)
+      await dataClient.documents.remove(doc.id, doc.storagePath)
       refetch()
     } catch (err) {
       setItemActionError(err instanceof Error ? err.message : 'Une erreur est survenue.')
@@ -341,6 +351,15 @@ export function ClientDetail() {
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-xs text-slate-400">{formatDate(doc.uploadedDate)}</span>
+                      {doc.storagePath && (
+                        <button
+                          onClick={() => handleDownloadDocument(doc)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                          aria-label="Télécharger le document"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditingDocument(doc)}
                         className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
