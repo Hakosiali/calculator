@@ -43,6 +43,7 @@ src/
     assistant.ts      Logique de réponse de l'Assistant IA (mock)
     notifications.ts  Calcule les alertes (tâches/factures en retard, événements à venir)
     csv.ts            Parseur/générateur CSV minimal (pour l'import clients)
+    googleCalendar.ts Génère un lien "Ajouter à Google Calendar" (pas d'API, pas d'OAuth)
   hooks/
     useAsyncData.ts   Hook { data, loading, error } pour consommer dataClient
   components/

@@ -12,13 +12,14 @@ import {
   subMonths,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, MapPin, CalendarDays, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, CalendarDays, CalendarPlus, Plus, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { EventFormModal } from '../components/calendar/EventFormModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { googleCalendarUrl } from '../lib/googleCalendar'
 import type { CalendarEvent, CalendarEventType } from '../types'
 
 const TODAY = new Date(2026, 9, 6)
@@ -214,6 +215,16 @@ export function Calendar() {
                         <p className="text-sm font-medium text-slate-800">{event.title}</p>
                         <div className="flex shrink-0 items-center gap-1">
                           <Badge className={TYPE_STYLES[event.type]}>{event.type}</Badge>
+                          <a
+                            href={googleCalendarUrl(event, [client && `Client : ${client.name}`, mission && `Mission : ${mission.title}`].filter(Boolean) as string[])}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                            aria-label="Ajouter à Google Calendar"
+                            title="Ajouter à Google Calendar"
+                          >
+                            <CalendarPlus className="h-3.5 w-3.5" />
+                          </a>
                           <button
                             onClick={() => setEditingEvent(event)}
                             className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
