@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, MapPin, Plus, Users } from 'lucide-react'
+import { Building2, MapPin, Plus, Upload, Users } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchInput } from '../components/ui/SearchInput'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ClientFormModal } from '../components/clients/ClientFormModal'
+import { ImportClientsModal } from '../components/clients/ImportClientsModal'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles } from '../lib/badges'
@@ -22,6 +23,7 @@ export function Clients() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all')
   const [modalOpen, setModalOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const { data, loading, error, refetch } = useAsyncData(
     () => Promise.all([dataClient.clients.list(), dataClient.missions.list()]),
@@ -55,17 +57,27 @@ export function Clients() {
         title="Clients"
         description={loading ? 'Chargement...' : `${clients.length} entreprises clientes et prospects`}
         actions={
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" />
-            Nouveau client
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Upload className="h-4 w-4" />
+              Importer
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" />
+              Nouveau client
+            </button>
+          </div>
         }
       />
 
       <ClientFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
+      <ImportClientsModal open={importOpen} onClose={() => setImportOpen(false)} onImported={refetch} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher par nom, secteur, wilaya..." className="sm:max-w-xs" />

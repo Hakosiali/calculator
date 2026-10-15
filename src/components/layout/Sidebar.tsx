@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Receipt,
   CalendarDays,
+  UserCog,
   Sparkles,
   X,
   Database,
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/documents', label: 'Documents', icon: FolderOpen },
   { to: '/invoices', label: 'Factures', icon: Receipt },
   { to: '/calendar', label: 'Calendrier', icon: CalendarDays },
+  { to: '/equipe', label: 'Équipe', icon: UserCog },
   { to: '/assistant', label: 'Assistant IA', icon: Sparkles },
 ]
 

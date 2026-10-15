@@ -42,6 +42,7 @@ src/
     badges.ts         Classes de couleur pour les badges de statut
     assistant.ts      Logique de réponse de l'Assistant IA (mock)
     notifications.ts  Calcule les alertes (tâches/factures en retard, événements à venir)
+    csv.ts            Parseur/générateur CSV minimal (pour l'import clients)
   hooks/
     useAsyncData.ts   Hook { data, loading, error } pour consommer dataClient
   components/
@@ -50,6 +51,7 @@ src/
     ui/          Composants réutilisables (Badge, Avatar, StatCard, ...)
   pages/
     Login.tsx    Écran de connexion
+    Team.tsx     Page "Équipe" (/equipe) — ajouter/retirer des consultants
     ...          Une page par section de la sidebar
 supabase/
   schema.sql     Tables + RLS, à exécuter une fois dans un projet Supabase

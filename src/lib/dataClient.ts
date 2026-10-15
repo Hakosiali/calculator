@@ -231,6 +231,15 @@ function calendarEventToRow(e: Omit<CalendarEvent, 'id'> & { id: string }): Cale
   }
 }
 
+function teamMemberToRow(t: Omit<TeamMember, 'id'> & { id: string }): TeamMemberRow {
+  return {
+    id: t.id,
+    name: t.name,
+    role: t.role,
+    initials: t.initials,
+  }
+}
+
 // --- Demo-mode delete cascades --------------------------------------------
 // Mirrors the foreign-key behaviour declared in supabase/schema.sql (mission
 // -> client and task -> mission are `on delete cascade`; document/invoice/
@@ -527,6 +536,24 @@ export const dataClient = {
       if (!isSupabaseConfigured) return resolve([...team].sort((a, b) => a.name.localeCompare(b.name)))
       const res = await supabase!.from('team_members').select('*').order('name')
       return unwrap(res).map(mapTeamMember)
+    },
+    create: async (input: Omit<TeamMember, 'id'>): Promise<TeamMember> => {
+      const newMember: TeamMember = { ...input, id: crypto.randomUUID() }
+      if (!isSupabaseConfigured) {
+        team.push(newMember)
+        return resolve(newMember)
+      }
+      const res = await supabase!.from('team_members').insert(teamMemberToRow(newMember)).select().single()
+      return mapTeamMember(unwrap(res))
+    },
+    remove: async (id: string): Promise<void> => {
+      if (!isSupabaseConfigured) {
+        const i = team.findIndex((t) => t.id === id)
+        if (i !== -1) team.splice(i, 1)
+        return resolve(undefined)
+      }
+      const { error } = await supabase!.from('team_members').delete().eq('id', id)
+      if (error) throw new Error(error.message)
     },
   },
 }

@@ -11,6 +11,7 @@ import { Tasks } from './pages/Tasks'
 import { Documents } from './pages/Documents'
 import { Invoices } from './pages/Invoices'
 import { Calendar } from './pages/Calendar'
+import { Team } from './pages/Team'
 import { Assistant } from './pages/Assistant'
 import { NotFound } from './pages/NotFound'
 
@@ -29,6 +30,7 @@ function App() {
           <Route path="/documents" element={<Documents />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/equipe" element={<Team />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="*" element={<NotFound />} />
         </Route>

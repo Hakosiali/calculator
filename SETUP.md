@@ -101,6 +101,21 @@ This is what keeps the public GitHub Pages demo open to everyone — the
 production build there has no Supabase env vars baked in, so it never
 shows a login screen. Auth only turns on once you add real credentials.
 
+## 6. Clearing the demo data for real use
+
+Once your project is connected, `supabase/seed.sql` has loaded the same
+fictional clients/missions/etc. as the local demo (Atlas Agro SPA and
+friends). To start using the app for real, run `supabase/reset-demo-data.sql`
+once in the SQL Editor — it empties every table and inserts a single
+placeholder team member (so the app has at least one name to offer in the
+"Consultant"/"Responsable" dropdowns). There's no undo, so export anything
+from the Table Editor first if you want to keep it. Add real team members
+afterwards from the **Équipe** page in the app itself (`/equipe`).
+
+To add many real clients at once instead of one at a time, use the
+**Importer** button on the Clients page — it accepts a CSV (download the
+template from that same dialog for the expected columns).
+
 ## How the wiring works
 
 - `src/lib/supabaseClient.ts` creates the client and exports
@@ -159,4 +174,6 @@ pages or components are added later:
   name/category/size/etc. as if it had been uploaded, the same way the
   seed data does. Invoice numbers auto-generate as `HRCC-YYYY-NNN` and
   the line-item list is editable (add/remove rows) in both create and
-  edit.
+  edit. Team members have create/remove (no edit) from the **Équipe**
+  page — removing someone doesn't touch missions/tasks already assigned
+  to them, it just stops offering their name for new ones.
