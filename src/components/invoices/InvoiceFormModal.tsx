@@ -36,6 +36,7 @@ function todayPlusDays(days: number): string {
 
 function emptyForm(clientId?: string) {
   return {
+    number: '',
     clientId: clientId ?? '',
     missionId: '',
     status: 'En attente' as InvoiceStatus,
@@ -47,6 +48,7 @@ function emptyForm(clientId?: string) {
 
 function formFromInvoice(invoice: Invoice): ReturnType<typeof emptyForm> {
   return {
+    number: invoice.number,
     clientId: invoice.clientId,
     missionId: invoice.missionId ?? '',
     // Legacy rows may still have "En retard" stored manually from before
@@ -61,13 +63,6 @@ function formFromInvoice(invoice: Invoice): ReturnType<typeof emptyForm> {
       unitPrice: String(it.unitPrice),
     })),
   }
-}
-
-function nextInvoiceNumber(existing: Invoice[]): string {
-  const year = new Date().getFullYear()
-  const prefix = `HRCC-${year}-`
-  const seq = existing.filter((i) => i.number.startsWith(prefix)).length + 1
-  return `${prefix}${String(seq).padStart(3, '0')}`
 }
 
 const inputClass =
@@ -123,8 +118,8 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const validItems = form.items.filter((it) => it.description.trim())
-    if (!form.clientId || validItems.length === 0) {
-      setError('Veuillez sélectionner un client et renseigner au moins une ligne de prestation.')
+    if (!form.number.trim() || !form.clientId || validItems.length === 0) {
+      setError('Veuillez renseigner le numéro de facture VosFactures, le client et au moins une ligne de prestation.')
       return
     }
     if (form.dueDate < form.issueDate) {
@@ -136,6 +131,7 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
     setError(null)
     try {
       const fields = {
+        number: form.number.trim(),
         clientId: form.clientId,
         missionId: form.missionId || null,
         status: form.status,
@@ -149,7 +145,7 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
       }
       const saved = invoice
         ? await dataClient.invoices.update({ ...invoice, ...fields })
-        : await dataClient.invoices.create({ ...fields, number: nextInvoiceNumber(await dataClient.invoices.list()) })
+        : await dataClient.invoices.create(fields)
       onSaved(saved)
       onClose()
     } catch (err) {
@@ -164,10 +160,24 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
       open={open}
       onClose={handleClose}
       title={isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
-      description={isEdit ? 'Mettre à jour les informations de cette facture.' : 'Émettre une facture pour un client.'}
+      description={
+        isEdit
+          ? 'Mettre à jour les informations de cette facture.'
+          : "Enregistrer une facture déjà émise dans VosFactures (source légale de numérotation) : son numéro, son client et ses lignes."
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="sm:col-span-2">
+            <span className={labelClass}>Numéro de facture (VosFactures)</span>
+            <input
+              className={inputClass}
+              value={form.number}
+              onChange={(e) => update('number', e.target.value)}
+              placeholder="ex. F-18"
+              required
+            />
+          </label>
           <label className={labelClass}>
             Client
             <select

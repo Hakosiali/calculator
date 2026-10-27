@@ -196,8 +196,11 @@ pages or components are added later:
   (see **7. Real file storage for documents** above); without that bucket
   (including the public GitHub Pages demo), "Téléverser" records a
   document's name/category/size/etc. as if it had been uploaded, the same
-  way the seed data does. Invoice numbers auto-generate as `HRCC-YYYY-NNN` and
-  the line-item list is editable (add/remove rows) in both create and
-  edit. Team members have create/remove (no edit) from the **Équipe**
+  way the seed data does. Invoice numbers are entered manually (the real
+  invoice number from VosFactures, HRCC's legal invoicing system — the app
+  doesn't generate its own numbering series, to avoid two numbering series
+  for the same invoices), and "En retard" is computed from the due date,
+  never hand-picked. The line-item list is editable (add/remove rows) in
+  both create and edit. Team members have create/remove (no edit) from the **Équipe**
   page — removing someone doesn't touch missions/tasks already assigned
   to them, it just stops offering their name for new ones.
