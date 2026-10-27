@@ -15,7 +15,10 @@ interface InvoiceFormModalProps {
   clientId?: string
 }
 
-const STATUSES: InvoiceStatus[] = ['En attente', 'Payée', 'En retard', 'Annulée']
+// "En retard" is never hand-picked - it's computed from the due date
+// (see effectiveInvoiceStatus in lib/invoice.ts), so it's deliberately
+// left out here.
+const STATUSES: InvoiceStatus[] = ['En attente', 'Payée', 'Annulée']
 
 interface ItemForm {
   description: string
@@ -46,7 +49,10 @@ function formFromInvoice(invoice: Invoice): ReturnType<typeof emptyForm> {
   return {
     clientId: invoice.clientId,
     missionId: invoice.missionId ?? '',
-    status: invoice.status,
+    // Legacy rows may still have "En retard" stored manually from before
+    // this became a computed status; the form falls back to "En attente"
+    // since "En retard" is no longer a selectable option.
+    status: invoice.status === 'En retard' ? 'En attente' : invoice.status,
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     items: invoice.items.map((it) => ({

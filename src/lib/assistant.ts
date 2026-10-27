@@ -5,7 +5,7 @@
 // Dashboard/Missions/Invoices pages.
 
 import { dataClient } from './dataClient'
-import { invoiceTotal } from './invoice'
+import { effectiveInvoiceStatus, invoiceTotal } from './invoice'
 import { formatCurrencyDZD, formatDate } from './format'
 
 function listOrNone(lines: string[], emptyMessage: string) {
@@ -50,7 +50,7 @@ export async function answerQuestion(raw: string): Promise<string> {
 
   if (/retard|impayé|impay/.test(q)) {
     const [invoices, clients] = await Promise.all([dataClient.invoices.list(), dataClient.clients.list()])
-    const overdue = invoices.filter((i) => i.status === 'En retard')
+    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard')
     const lines = overdue.map(
       (i) => `${i.number} — ${clients.find((c) => c.id === i.clientId)?.name} — ${formatCurrencyDZD(invoiceTotal(i))} (échue le ${formatDate(i.dueDate)})`,
     )
@@ -59,9 +59,9 @@ export async function answerQuestion(raw: string): Promise<string> {
 
   if (/revenu|chiffre d'affaires|ca |facturation|encaiss/.test(q)) {
     const invoices = await dataClient.invoices.list()
-    const paid = invoices.filter((i) => i.status === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
-    const pending = invoices.filter((i) => i.status === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
-    const overdue = invoices.filter((i) => i.status === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
+    const paid = invoices.filter((i) => effectiveInvoiceStatus(i) === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
+    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
+    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
     return `Total encaissé : ${formatCurrencyDZD(paid)}\nEn attente de paiement : ${formatCurrencyDZD(pending)}\nEn retard : ${formatCurrencyDZD(overdue)}`
   }
 

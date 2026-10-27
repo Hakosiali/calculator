@@ -3,7 +3,18 @@ import { Sparkles, Send, Bot } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Avatar } from '../components/ui/Avatar'
 import { answerQuestion } from '../lib/assistant'
+import { useAuth } from '../lib/AuthProvider'
 import type { ChatMessage } from '../types'
+
+/** Best-effort display name from an email local-part (e.g. "si.ali.hebib" -> "Si Ali Hebib"). */
+function nameFromEmail(email: string): string {
+  return email
+    .split('@')[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ')
+}
 
 const SUGGESTIONS = [
   'Quelles missions sont urgentes ?',
@@ -17,13 +28,19 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function greeting(userName: string | null) {
+  return `Bonjour${userName ? ` ${userName}` : ''}, je suis l'assistant IA de HRCC. Posez-moi une question sur vos clients, missions, tâches ou factures.`
+}
+
 export function Assistant() {
+  const { user } = useAuth()
+  const displayName = user?.email ? nameFromEmail(user.email) : null
+  const firstName = displayName?.split(' ')[0] ?? null
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        "Bonjour Amina, je suis l'assistant IA de HRCC. Posez-moi une question sur vos clients, missions, tâches ou factures.",
+      content: greeting(firstName),
       timestamp: nowIso(),
     },
   ])
@@ -34,6 +51,15 @@ export function Assistant() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
+
+  // The real user resolves asynchronously after a Supabase session check,
+  // so re-greet once it's known (demo mode already has it at mount).
+  useEffect(() => {
+    setMessages((prev) =>
+      prev[0]?.id === 'welcome' ? [{ ...prev[0], content: greeting(firstName) }, ...prev.slice(1)] : prev,
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstName])
 
   function send(content: string) {
     const trimmed = content.trim()
@@ -81,7 +107,7 @@ export function Assistant() {
                     <Bot className="h-4 w-4" />
                   </div>
                 ) : (
-                  <Avatar name="Amina Belkacemi" size="sm" />
+                  <Avatar name={displayName ?? user?.email ?? 'Vous'} size="sm" />
                 )}
                 <div
                   className={`max-w-[80%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${

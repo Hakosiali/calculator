@@ -27,9 +27,13 @@ import { StatCard } from '../components/ui/StatCard'
 import { Badge } from '../components/ui/Badge'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
-import { invoiceTotal } from '../lib/invoice'
-import { formatCurrencyDZD, formatDate } from '../lib/format'
+import { effectiveInvoiceStatus, invoiceTotal } from '../lib/invoice'
+import { formatCurrencyDZD, formatDate, formatDateLong } from '../lib/format'
 import { missionStatusStyles } from '../lib/badges'
+
+// Evaluated once per page load, not during render, so it doesn't trip the
+// "impure function during render" lint rule the way `new Date()` inline would.
+const TODAY = new Date()
 
 const MISSION_COLORS: Record<string, string> = {
   Planifiée: '#0ea5e9',
@@ -63,10 +67,10 @@ export function Dashboard() {
   const ongoingMissions = missions.filter((m) => m.status === 'En cours').length
   const pendingTasks = tasks.filter((t) => t.status !== 'Terminé').length
   const revenueCollected = invoices
-    .filter((i) => i.status === 'Payée')
+    .filter((i) => effectiveInvoiceStatus(i) === 'Payée')
     .reduce((sum, i) => sum + invoiceTotal(i), 0)
   const revenueOutstanding = invoices
-    .filter((i) => i.status === 'En attente' || i.status === 'En retard')
+    .filter((i) => effectiveInvoiceStatus(i) === 'En attente' || effectiveInvoiceStatus(i) === 'En retard')
     .reduce((sum, i) => sum + invoiceTotal(i), 0)
 
   const missionsByStatus = useMemo(() => {
@@ -81,7 +85,7 @@ export function Dashboard() {
 
   const revenueByMonth = useMemo(() => {
     const months: { key: string; label: string }[] = []
-    const base = new Date(2026, 9, 1) // October 2026
+    const base = TODAY
     for (let i = 5; i >= 0; i--) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
       months.push({
@@ -117,7 +121,7 @@ export function Dashboard() {
   }, [documents, invoices, clients])
 
   const upcomingDeadlines = useMemo(() => {
-    const today = '2026-10-06'
+    const today = TODAY.toISOString().slice(0, 10)
     return events
       .filter((e) => e.date >= today)
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
@@ -156,7 +160,7 @@ export function Dashboard() {
     <div>
       <PageHeader
         title="Tableau de bord"
-        description="Vue d'ensemble de l'activité HRCC - 6 octobre 2026"
+        description={`Vue d'ensemble de l'activité HRCC - ${formatDateLong(TODAY.toISOString().slice(0, 10))}`}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

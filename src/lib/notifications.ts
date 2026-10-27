@@ -3,6 +3,7 @@
 // (overdue tasks/invoices, events coming up), recomputed on every fetch.
 
 import { daysUntil } from './format'
+import { effectiveInvoiceStatus } from './invoice'
 import type { CalendarEvent, Client, Invoice, Mission, Task } from '../types'
 
 export type NotificationSeverity = 'urgent' | 'warning' | 'info'
@@ -60,7 +61,7 @@ export function buildNotifications(
     if (invoice.status === 'Payée' || invoice.status === 'Annulée') continue
     const diff = daysUntil(invoice.dueDate)
     const client = clientById.get(invoice.clientId)
-    if (invoice.status === 'En retard' || diff < 0) {
+    if (effectiveInvoiceStatus(invoice) === 'En retard') {
       notifications.push({
         id: `invoice-overdue-${invoice.id}`,
         severity: 'urgent',

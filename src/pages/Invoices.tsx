@@ -11,7 +11,7 @@ import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
-import { invoiceTotal } from '../lib/invoice'
+import { effectiveInvoiceStatus, invoiceTotal } from '../lib/invoice'
 import type { Invoice, InvoiceStatus } from '../types'
 
 const STATUSES: (InvoiceStatus | 'all')[] = ['all', 'Payée', 'En attente', 'En retard', 'Annulée']
@@ -34,9 +34,9 @@ export function Invoices() {
   const clients = data?.[1] ?? []
 
   const totals = useMemo(() => {
-    const paid = invoices.filter((i) => i.status === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
-    const pending = invoices.filter((i) => i.status === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
-    const overdue = invoices.filter((i) => i.status === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
+    const paid = invoices.filter((i) => effectiveInvoiceStatus(i) === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
+    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
+    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
     return { paid, pending, overdue }
   }, [invoices])
 
@@ -45,7 +45,7 @@ export function Invoices() {
     return invoices.filter((inv) => {
       const client = clients.find((c) => c.id === inv.clientId)
       const matchesQuery = !q || inv.number.toLowerCase().includes(q) || client?.name.toLowerCase().includes(q)
-      const matchesStatus = status === 'all' || inv.status === status
+      const matchesStatus = status === 'all' || effectiveInvoiceStatus(inv) === status
       const matchesClient = clientId === 'all' || inv.clientId === clientId
       return matchesQuery && matchesStatus && matchesClient
     })
@@ -177,7 +177,7 @@ export function Invoices() {
                       <td className="px-5 py-3 text-slate-600">{formatDate(inv.dueDate)}</td>
                       <td className="px-5 py-3 font-medium text-slate-800">{formatCurrencyDZD(invoiceTotal(inv))}</td>
                       <td className="px-5 py-3">
-                        <Badge className={invoiceStatusStyles[inv.status]}>{inv.status}</Badge>
+                        <Badge className={invoiceStatusStyles[effectiveInvoiceStatus(inv)]}>{effectiveInvoiceStatus(inv)}</Badge>
                       </td>
                       <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">

@@ -22,7 +22,7 @@ import { useAsyncData } from '../hooks/useAsyncData'
 import { googleCalendarUrl } from '../lib/googleCalendar'
 import type { CalendarEvent, CalendarEventType } from '../types'
 
-const TODAY = new Date(2026, 9, 6)
+const TODAY = new Date()
 
 const TYPE_STYLES: Record<CalendarEventType, string> = {
   Réunion: 'bg-indigo-100 text-indigo-700',
@@ -33,7 +33,7 @@ const TYPE_STYLES: Record<CalendarEventType, string> = {
 }
 
 export function Calendar() {
-  const [month, setMonth] = useState(new Date(2026, 9, 1))
+  const [month, setMonth] = useState(startOfMonth(TODAY))
   const [selectedDate, setSelectedDate] = useState(format(TODAY, 'yyyy-MM-dd'))
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
@@ -134,7 +134,7 @@ export function Calendar() {
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => setMonth(new Date(2026, 9, 1))}
+                  onClick={() => setMonth(startOfMonth(TODAY))}
                   className="rounded-md px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 >
                   Aujourd'hui
