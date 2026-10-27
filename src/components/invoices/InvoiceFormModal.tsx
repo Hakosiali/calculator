@@ -3,7 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { dataClient } from '../../lib/dataClient'
 import { formatCurrencyDZD } from '../../lib/format'
-import type { Client, Invoice, InvoiceStatus, Mission } from '../../types'
+import type { Client, Invoice, InvoiceStatus, Mission, PaymentMode } from '../../types'
 
 interface InvoiceFormModalProps {
   open: boolean
@@ -19,6 +19,7 @@ interface InvoiceFormModalProps {
 // (see effectiveInvoiceStatus in lib/invoice.ts), so it's deliberately
 // left out here.
 const STATUSES: InvoiceStatus[] = ['En attente', 'Payée', 'Annulée']
+const PAYMENT_MODES: PaymentMode[] = ['Virement', 'Chèque', 'Espèces']
 
 interface ItemForm {
   description: string
@@ -26,7 +27,18 @@ interface ItemForm {
   unitPrice: string
 }
 
+interface PaymentForm {
+  date: string
+  amount: string
+  mode: PaymentMode
+  reference: string
+}
+
 const EMPTY_ITEM: ItemForm = { description: '', quantity: '1', unitPrice: '' }
+
+function emptyPayment(): PaymentForm {
+  return { date: new Date().toISOString().slice(0, 10), amount: '', mode: 'Virement', reference: '' }
+}
 
 function todayPlusDays(days: number): string {
   const d = new Date()
@@ -43,6 +55,10 @@ function emptyForm(clientId?: string) {
     issueDate: new Date().toISOString().slice(0, 10),
     dueDate: todayPlusDays(30),
     items: [{ ...EMPTY_ITEM }] as ItemForm[],
+    vatRate: '19',
+    paymentMode: 'Virement' as PaymentMode,
+    stampDuty: '0',
+    payments: [] as PaymentForm[],
   }
 }
 
@@ -61,6 +77,15 @@ function formFromInvoice(invoice: Invoice): ReturnType<typeof emptyForm> {
       description: it.description,
       quantity: String(it.quantity),
       unitPrice: String(it.unitPrice),
+    })),
+    vatRate: String(invoice.vatRate),
+    paymentMode: invoice.paymentMode,
+    stampDuty: String(invoice.stampDuty),
+    payments: invoice.payments.map((p) => ({
+      date: p.date,
+      amount: String(p.amount),
+      mode: p.mode,
+      reference: p.reference,
     })),
   }
 }
@@ -107,8 +132,28 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
     setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }))
   }
 
+  function updatePayment(index: number, patch: Partial<PaymentForm>) {
+    setForm((prev) => ({
+      ...prev,
+      payments: prev.payments.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    }))
+  }
+
+  function addPayment() {
+    setForm((prev) => ({ ...prev, payments: [...prev.payments, emptyPayment()] }))
+  }
+
+  function removePayment(index: number) {
+    setForm((prev) => ({ ...prev, payments: prev.payments.filter((_, i) => i !== index) }))
+  }
+
   const missionsForClient = missions.filter((m) => !form.clientId || m.clientId === form.clientId)
-  const total = form.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
+  const totalHT = form.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
+  const vat = totalHT * ((Number(form.vatRate) || 0) / 100)
+  const stampDuty = form.paymentMode === 'Espèces' ? Number(form.stampDuty) || 0 : 0
+  const totalTTC = totalHT + vat + stampDuty
+  const totalPaid = form.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  const balance = Math.max(0, totalTTC - totalPaid)
 
   function handleClose() {
     if (submitting) return
@@ -118,12 +163,17 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const validItems = form.items.filter((it) => it.description.trim())
+    const validPayments = form.payments.filter((p) => (Number(p.amount) || 0) > 0)
     if (!form.number.trim() || !form.clientId || validItems.length === 0) {
       setError('Veuillez renseigner le numéro de facture VosFactures, le client et au moins une ligne de prestation.')
       return
     }
     if (form.dueDate < form.issueDate) {
       setError("La date d'échéance ne peut pas précéder la date d'émission.")
+      return
+    }
+    if (validPayments.some((p) => !p.date)) {
+      setError('Veuillez renseigner la date de chaque encaissement.')
       return
     }
 
@@ -141,6 +191,15 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
           description: it.description.trim(),
           quantity: Number(it.quantity) || 0,
           unitPrice: Number(it.unitPrice) || 0,
+        })),
+        vatRate: Number(form.vatRate) || 0,
+        paymentMode: form.paymentMode,
+        stampDuty: Number(form.stampDuty) || 0,
+        payments: validPayments.map((p) => ({
+          date: p.date,
+          amount: Number(p.amount) || 0,
+          mode: p.mode,
+          reference: p.reference.trim(),
         })),
       }
       const saved = invoice
@@ -212,7 +271,14 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
               ))}
             </select>
           </label>
-          <div />
+          <label className={labelClass}>
+            Mode de paiement prévu
+            <select className={inputClass} value={form.paymentMode} onChange={(e) => update('paymentMode', e.target.value as PaymentMode)}>
+              {PAYMENT_MODES.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </label>
           <label className={labelClass}>
             Date d'émission
             <input type="date" className={inputClass} value={form.issueDate} onChange={(e) => update('issueDate', e.target.value)} required />
@@ -221,6 +287,17 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
             Date d'échéance
             <input type="date" className={inputClass} value={form.dueDate} onChange={(e) => update('dueDate', e.target.value)} required />
           </label>
+          <label className={labelClass}>
+            Taux de TVA (%)
+            <input type="number" min={0} max={100} className={inputClass} value={form.vatRate} onChange={(e) => update('vatRate', e.target.value)} />
+          </label>
+          {form.paymentMode === 'Espèces' && (
+            <label className={labelClass}>
+              Droit de timbre (DA)
+              <input type="number" min={0} className={inputClass} value={form.stampDuty} onChange={(e) => update('stampDuty', e.target.value)} />
+              <span className="mt-0.5 block text-[11px] font-normal text-slate-400">À vérifier selon le barème en vigueur.</span>
+            </label>
+          )}
         </div>
 
         <div>
@@ -268,7 +345,70 @@ export function InvoiceFormModal({ open, onClose, onSaved, invoice, clientId }: 
               </div>
             ))}
           </div>
-          <p className="mt-2 text-right text-sm font-semibold text-slate-800">Total : {formatCurrencyDZD(total)}</p>
+          <div className="mt-2 space-y-0.5 text-right text-sm text-slate-600">
+            <p>Total HT : {formatCurrencyDZD(totalHT)}</p>
+            <p>TVA ({form.vatRate || 0}%) : {formatCurrencyDZD(vat)}</p>
+            {stampDuty > 0 && <p>Droit de timbre : {formatCurrencyDZD(stampDuty)}</p>}
+            <p className="font-semibold text-slate-800">Total TTC : {formatCurrencyDZD(totalTTC)}</p>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <span className={labelClass}>Encaissements</span>
+            <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+              <Plus className="h-3.5 w-3.5" />
+              Ajouter un encaissement
+            </button>
+          </div>
+          {form.payments.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-400">Aucun encaissement enregistré. Paiements partiels acceptés.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {form.payments.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    className={`${inputClass} mt-0 w-36`}
+                    value={p.date}
+                    onChange={(e) => updatePayment(i, { date: e.target.value })}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    className={`${inputClass} mt-0 w-28`}
+                    placeholder="Montant"
+                    value={p.amount}
+                    onChange={(e) => updatePayment(i, { amount: e.target.value })}
+                  />
+                  <select
+                    className={`${inputClass} mt-0 w-28`}
+                    value={p.mode}
+                    onChange={(e) => updatePayment(i, { mode: e.target.value as PaymentMode })}
+                  >
+                    {PAYMENT_MODES.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <input
+                    className={`${inputClass} mt-0 flex-1`}
+                    placeholder="Référence"
+                    value={p.reference}
+                    onChange={(e) => updatePayment(i, { reference: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePayment(i)}
+                    className="shrink-0 rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-rose-600"
+                    aria-label="Supprimer l'encaissement"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-right text-sm font-semibold text-slate-800">Solde restant : {formatCurrencyDZD(balance)}</p>
         </div>
 
         {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}

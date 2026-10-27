@@ -116,6 +116,10 @@ function mapInvoice(row: InvoiceRow): Invoice {
     issueDate: row.issue_date,
     dueDate: row.due_date,
     items: row.items,
+    vatRate: row.vat_rate,
+    paymentMode: row.payment_mode as Invoice['paymentMode'],
+    stampDuty: row.stamp_duty,
+    payments: row.payments.map((p) => ({ date: p.date, amount: p.amount, mode: p.mode as Invoice['paymentMode'], reference: p.reference })),
   }
 }
 
@@ -217,6 +221,10 @@ function invoiceToRow(i: Omit<Invoice, 'id'> & { id: string }): InvoiceRow {
     issue_date: i.issueDate,
     due_date: i.dueDate,
     items: i.items,
+    vat_rate: i.vatRate,
+    payment_mode: i.paymentMode,
+    stamp_duty: i.stampDuty,
+    payments: i.payments,
   }
 }
 

@@ -88,10 +88,19 @@ export interface AppDocument {
 
 export type InvoiceStatus = 'Payée' | 'En attente' | 'En retard' | 'Annulée'
 
+export type PaymentMode = 'Virement' | 'Chèque' | 'Espèces'
+
 export interface InvoiceItem {
   description: string
   quantity: number
   unitPrice: number
+}
+
+export interface InvoicePayment {
+  date: string // ISO date
+  amount: number
+  mode: PaymentMode
+  reference: string
 }
 
 export interface Invoice {
@@ -103,6 +112,14 @@ export interface Invoice {
   issueDate: string
   dueDate: string
   items: InvoiceItem[]
+  /** VAT rate as a percentage (e.g. 19), applied to the HT subtotal from items. */
+  vatRate: number
+  /** Mode de paiement prévu. */
+  paymentMode: PaymentMode
+  /** Droit de timbre (DA) - only added to the TTC total when paymentMode is 'Espèces'. */
+  stampDuty: number
+  /** Encaissements enregistrés contre cette facture - paiements partiels acceptés. */
+  payments: InvoicePayment[]
 }
 
 export type CalendarEventType = 'Réunion' | 'Échéance' | 'Livraison' | 'Entretien' | 'Formation'

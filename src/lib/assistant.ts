@@ -5,7 +5,7 @@
 // Dashboard/Missions/Invoices pages.
 
 import { dataClient } from './dataClient'
-import { effectiveInvoiceStatus, invoiceTotal } from './invoice'
+import { effectiveInvoiceStatus, invoiceBalance, invoicePaidAmount } from './invoice'
 import { formatCurrencyDZD, formatDate } from './format'
 
 function listOrNone(lines: string[], emptyMessage: string) {
@@ -52,16 +52,16 @@ export async function answerQuestion(raw: string): Promise<string> {
     const [invoices, clients] = await Promise.all([dataClient.invoices.list(), dataClient.clients.list()])
     const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard')
     const lines = overdue.map(
-      (i) => `${i.number} — ${clients.find((c) => c.id === i.clientId)?.name} — ${formatCurrencyDZD(invoiceTotal(i))} (échue le ${formatDate(i.dueDate)})`,
+      (i) => `${i.number} — ${clients.find((c) => c.id === i.clientId)?.name} — ${formatCurrencyDZD(invoiceBalance(i))} restant dû (échue le ${formatDate(i.dueDate)})`,
     )
     return `Factures en retard de paiement :\n${listOrNone(lines, "Aucune facture en retard, tout est à jour !")}`
   }
 
   if (/revenu|chiffre d'affaires|ca |facturation|encaiss/.test(q)) {
     const invoices = await dataClient.invoices.list()
-    const paid = invoices.filter((i) => effectiveInvoiceStatus(i) === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
-    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
-    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
+    const paid = invoices.reduce((s, i) => s + invoicePaidAmount(i), 0)
+    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceBalance(i), 0)
+    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceBalance(i), 0)
     return `Total encaissé : ${formatCurrencyDZD(paid)}\nEn attente de paiement : ${formatCurrencyDZD(pending)}\nEn retard : ${formatCurrencyDZD(overdue)}`
   }
 

@@ -201,6 +201,15 @@ pages or components are added later:
   doesn't generate its own numbering series, to avoid two numbering series
   for the same invoices), and "En retard" is computed from the due date,
   never hand-picked. The line-item list is editable (add/remove rows) in
-  both create and edit. Team members have create/remove (no edit) from the **Équipe**
-  page — removing someone doesn't touch missions/tasks already assigned
-  to them, it just stops offering their name for new ones.
+  both create and edit, and each invoice also carries a VAT rate (19% by
+  default, 0% allowed), a planned payment mode, a droit de timbre (added to
+  the total only when the payment mode is "Espèces" — its amount is a plain
+  number you enter yourself, since the app doesn't calculate it; verify it
+  against the schedule in force), and a list of encaissements (partial
+  payments accepted — date, amount, mode, reference). Total HT, TVA and TTC
+  recompute live as you edit; "Payée" is set automatically once recorded
+  encaissements cover the TTC total, on top of still being settable by hand
+  for invoices paid before this was tracked. Team members have create/remove
+  (no edit) from the **Équipe** page — removing someone doesn't touch
+  missions/tasks already assigned to them, it just stops offering their
+  name for new ones.

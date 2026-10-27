@@ -115,23 +115,23 @@ insert into documents (id, name, category, client_id, mission_id, uploaded_by, u
   ('d26', 'Modèle de rapport de mission HRCC.docx', 'Autre', null, null, 'Amina Belkacemi', '2024-01-12', 120, 'docx')
 on conflict (id) do nothing;
 
-insert into invoices (id, number, client_id, mission_id, status, issue_date, due_date, items) values
-  ('i1', 'HRCC-2026-034', 'c2', 'm2', 'Payée', '2026-09-22', '2026-10-22', '[{"description":"Audit RH annuel 2026 - acompte 50%","quantity":1,"unitPrice":1100000}]'::jsonb),
-  ('i2', 'HRCC-2026-048', 'c12', 'm16', 'Payée', '2026-10-01', '2026-10-31', '[{"description":"Formation chefs de rayon - session 1 & 2","quantity":1,"unitPrice":550000}]'::jsonb),
-  ('i3', 'HRCC-2026-051', 'c1', 'm1', 'En attente', '2026-10-01', '2026-11-01', '[{"description":"Recrutement 8 cadres production - facture intermédiaire","quantity":1,"unitPrice":675000}]'::jsonb),
-  ('i4', 'HRCC-2026-052', 'c3', 'm4', 'En attente', '2026-10-02', '2026-11-02', '[{"description":"Mise en conformité paie - phase diagnostic","quantity":1,"unitPrice":900000},{"description":"Formation gestionnaires paie","quantity":1,"unitPrice":250000}]'::jsonb),
-  ('i5', 'HRCC-2026-029', 'c4', 'm6', 'En retard', '2026-08-15', '2026-09-15', '[{"description":"Programme formation managériale - module 1 & 2","quantity":1,"unitPrice":1750000}]'::jsonb),
-  ('i6', 'HRCC-2026-055', 'c5', 'm8', 'En attente', '2026-10-05', '2026-11-05', '[{"description":"Refonte processus de paie - acompte","quantity":1,"unitPrice":500000}]'::jsonb),
-  ('i7', 'HRCC-2026-041', 'c6', 'm9', 'Payée', '2026-09-01', '2026-10-01', '[{"description":"Structuration RH - règlement intérieur et contrats types","quantity":1,"unitPrice":950000}]'::jsonb),
-  ('i8', 'HRCC-2025-091', 'c7', 'm10', 'Payée', '2025-07-20', '2025-08-20', '[{"description":"Audit RH complet - solde final","quantity":1,"unitPrice":1650000}]'::jsonb),
-  ('i9', 'HRCC-2026-044', 'c8', 'm11', 'Payée', '2026-09-15', '2026-10-15', '[{"description":"Recrutement conducteurs de travaux","quantity":1,"unitPrice":980000}]'::jsonb),
-  ('i10', 'HRCC-2026-038', 'c8', 'm12', 'En retard', '2026-08-30', '2026-09-30', '[{"description":"Recrutement continu ouvriers qualifiés - T3 2026","quantity":1,"unitPrice":400000}]'::jsonb),
-  ('i11', 'HRCC-2026-033', 'c10', 'm14', 'Payée', '2026-09-05', '2026-10-05', '[{"description":"Mise en place outils RH - phase 1","quantity":1,"unitPrice":425000}]'::jsonb),
-  ('i12', 'HRCC-2026-057', 'c4', 'm19', 'En attente', '2026-10-06', '2026-10-21', '[{"description":"Accompagnement négociation annuelle obligatoire","quantity":1,"unitPrice":1750000}]'::jsonb),
-  ('i13', 'HRCC-2025-078', 'c12', 'm17', 'Payée', '2026-01-18', '2026-02-18', '[{"description":"Campagne de recrutement saisonnier","quantity":1,"unitPrice":620000}]'::jsonb),
-  ('i14', 'HRCC-2025-065', 'c3', 'm5', 'Payée', '2026-01-25', '2026-02-25', '[{"description":"Audit social & sécurité sur site - solde","quantity":1,"unitPrice":1300000}]'::jsonb),
-  ('i15', 'HRCC-2024-112', 'c4', 'm7', 'Payée', '2025-10-02', '2025-11-02', '[{"description":"Conseil stratégique - plan de succession","quantity":1,"unitPrice":2900000}]'::jsonb),
-  ('i16', 'HRCC-2026-021', 'c5', 'm20', 'Annulée', '2025-09-10', '2025-10-10', '[{"description":"Audit paie et charges sociales (mission annulée)","quantity":1,"unitPrice":75000}]'::jsonb)
+insert into invoices (id, number, client_id, mission_id, status, issue_date, due_date, items, vat_rate, payment_mode, stamp_duty, payments) values
+  ('i1', 'HRCC-2026-034', 'c2', 'm2', 'Payée', '2026-09-22', '2026-10-22', '[{"description":"Audit RH annuel 2026 - acompte 50%","quantity":1,"unitPrice":1100000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i2', 'HRCC-2026-048', 'c12', 'm16', 'Payée', '2026-10-01', '2026-10-31', '[{"description":"Formation chefs de rayon - session 1 & 2","quantity":1,"unitPrice":550000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i3', 'HRCC-2026-051', 'c1', 'm1', 'En attente', '2026-10-01', '2026-11-01', '[{"description":"Recrutement 8 cadres production - facture intermédiaire","quantity":1,"unitPrice":675000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i4', 'HRCC-2026-052', 'c3', 'm4', 'En attente', '2026-10-02', '2026-11-02', '[{"description":"Mise en conformité paie - phase diagnostic","quantity":1,"unitPrice":900000},{"description":"Formation gestionnaires paie","quantity":1,"unitPrice":250000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i5', 'HRCC-2026-029', 'c4', 'm6', 'En retard', '2026-08-15', '2026-09-15', '[{"description":"Programme formation managériale - module 1 & 2","quantity":1,"unitPrice":1750000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i6', 'HRCC-2026-055', 'c5', 'm8', 'En attente', '2026-10-05', '2026-11-05', '[{"description":"Refonte processus de paie - acompte","quantity":1,"unitPrice":500000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i7', 'HRCC-2026-041', 'c6', 'm9', 'Payée', '2026-09-01', '2026-10-01', '[{"description":"Structuration RH - règlement intérieur et contrats types","quantity":1,"unitPrice":950000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i8', 'HRCC-2025-091', 'c7', 'm10', 'Payée', '2025-07-20', '2025-08-20', '[{"description":"Audit RH complet - solde final","quantity":1,"unitPrice":1650000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i9', 'HRCC-2026-044', 'c8', 'm11', 'Payée', '2026-09-15', '2026-10-15', '[{"description":"Recrutement conducteurs de travaux","quantity":1,"unitPrice":980000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i10', 'HRCC-2026-038', 'c8', 'm12', 'En retard', '2026-08-30', '2026-09-30', '[{"description":"Recrutement continu ouvriers qualifiés - T3 2026","quantity":1,"unitPrice":400000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i11', 'HRCC-2026-033', 'c10', 'm14', 'Payée', '2026-09-05', '2026-10-05', '[{"description":"Mise en place outils RH - phase 1","quantity":1,"unitPrice":425000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i12', 'HRCC-2026-057', 'c4', 'm19', 'En attente', '2026-10-06', '2026-10-21', '[{"description":"Accompagnement négociation annuelle obligatoire","quantity":1,"unitPrice":1750000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i13', 'HRCC-2025-078', 'c12', 'm17', 'Payée', '2026-01-18', '2026-02-18', '[{"description":"Campagne de recrutement saisonnier","quantity":1,"unitPrice":620000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i14', 'HRCC-2025-065', 'c3', 'm5', 'Payée', '2026-01-25', '2026-02-25', '[{"description":"Audit social & sécurité sur site - solde","quantity":1,"unitPrice":1300000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i15', 'HRCC-2024-112', 'c4', 'm7', 'Payée', '2025-10-02', '2025-11-02', '[{"description":"Conseil stratégique - plan de succession","quantity":1,"unitPrice":2900000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb),
+  ('i16', 'HRCC-2026-021', 'c5', 'm20', 'Annulée', '2025-09-10', '2025-10-10', '[{"description":"Audit paie et charges sociales (mission annulée)","quantity":1,"unitPrice":75000}]'::jsonb, 19, 'Virement', 0, '[]'::jsonb)
 on conflict (id) do nothing;
 
 insert into calendar_events (id, title, date, time, type, client_id, mission_id, location) values

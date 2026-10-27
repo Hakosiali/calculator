@@ -74,8 +74,19 @@ create table if not exists invoices (
   status text not null,
   issue_date date not null,
   due_date date not null,
-  items jsonb not null default '[]'::jsonb
+  items jsonb not null default '[]'::jsonb,
+  vat_rate numeric not null default 19,
+  payment_mode text not null default 'Virement',
+  stamp_duty numeric not null default 0,
+  payments jsonb not null default '[]'::jsonb
 );
+-- Idempotent, like the "documents.storage_path" migration above: re-running
+-- this script against a project created before these columns existed adds
+-- them in place.
+alter table invoices add column if not exists vat_rate numeric not null default 19;
+alter table invoices add column if not exists payment_mode text not null default 'Virement';
+alter table invoices add column if not exists stamp_duty numeric not null default 0;
+alter table invoices add column if not exists payments jsonb not null default '[]'::jsonb;
 create index if not exists invoices_client_id_idx on invoices (client_id);
 
 create table if not exists calendar_events (

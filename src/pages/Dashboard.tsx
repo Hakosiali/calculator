@@ -27,7 +27,7 @@ import { StatCard } from '../components/ui/StatCard'
 import { Badge } from '../components/ui/Badge'
 import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
-import { effectiveInvoiceStatus, invoiceTotal } from '../lib/invoice'
+import { effectiveInvoiceStatus, invoiceBalance, invoicePaidAmount, invoiceTotalTTC } from '../lib/invoice'
 import { formatCurrencyDZD, formatDate, formatDateLong } from '../lib/format'
 import { missionStatusStyles } from '../lib/badges'
 
@@ -66,12 +66,13 @@ export function Dashboard() {
   const activeClients = clients.filter((c) => c.status === 'actif').length
   const ongoingMissions = missions.filter((m) => m.status === 'En cours').length
   const pendingTasks = tasks.filter((t) => t.status !== 'Terminé').length
-  const revenueCollected = invoices
-    .filter((i) => effectiveInvoiceStatus(i) === 'Payée')
-    .reduce((sum, i) => sum + invoiceTotal(i), 0)
+  // "Revenu encaissé" is the sum of actual encaissements recorded against
+  // invoices, not just the total of invoices marked "Payée" - a partial
+  // payment on a still-open invoice is real revenue already in the bank.
+  const revenueCollected = invoices.reduce((sum, i) => sum + invoicePaidAmount(i), 0)
   const revenueOutstanding = invoices
     .filter((i) => effectiveInvoiceStatus(i) === 'En attente' || effectiveInvoiceStatus(i) === 'En retard')
-    .reduce((sum, i) => sum + invoiceTotal(i), 0)
+    .reduce((sum, i) => sum + invoiceBalance(i), 0)
 
   const missionsByStatus = useMemo(() => {
     const order: (keyof typeof MISSION_COLORS)[] = ['En cours', 'Planifiée', 'En pause', 'Terminée', 'Annulée']
@@ -96,7 +97,7 @@ export function Dashboard() {
     return months.map(({ key, label }) => {
       const total = invoices
         .filter((inv) => inv.issueDate.startsWith(key) && inv.status !== 'Annulée')
-        .reduce((sum, inv) => sum + invoiceTotal(inv), 0)
+        .reduce((sum, inv) => sum + invoiceTotalTTC(inv), 0)
       return { label, total: Math.round(total / 1000) }
     })
   }, [invoices])

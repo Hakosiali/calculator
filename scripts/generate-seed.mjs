@@ -80,11 +80,13 @@ out.push(
 out.push(
   insertStatement(
     'invoices',
-    ['id', 'number', 'client_id', 'mission_id', 'status', 'issue_date', 'due_date', 'items'],
+    ['id', 'number', 'client_id', 'mission_id', 'status', 'issue_date', 'due_date', 'items', 'vat_rate', 'payment_mode', 'stamp_duty', 'payments'],
     invoices.map((i) => [
       sqlStr(i.id), sqlStr(i.number), sqlStr(i.clientId), sqlStr(i.missionId),
       sqlStr(i.status), sqlStr(i.issueDate), sqlStr(i.dueDate),
       `'${JSON.stringify(i.items).replace(/'/g, "''")}'::jsonb`,
+      sqlNum(i.vatRate), sqlStr(i.paymentMode), sqlNum(i.stampDuty),
+      `'${JSON.stringify(i.payments).replace(/'/g, "''")}'::jsonb`,
     ]),
   ),
 )

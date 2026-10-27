@@ -75,6 +75,10 @@ type InvoiceRow = {
   issue_date: string
   due_date: string
   items: { description: string; quantity: number; unitPrice: number }[]
+  vat_rate: number
+  payment_mode: string
+  stamp_duty: number
+  payments: { date: string; amount: number; mode: string; reference: string }[]
 }
 
 type CalendarEventRow = {

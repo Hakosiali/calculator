@@ -11,7 +11,7 @@ import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { clientStatusStyles, missionStatusStyles, invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate, formatDateLong } from '../lib/format'
-import { effectiveInvoiceStatus, invoiceTotal } from '../lib/invoice'
+import { effectiveInvoiceStatus, invoiceTotalTTC } from '../lib/invoice'
 import { NotFound } from './NotFound'
 import type { AppDocument, Invoice } from '../types'
 
@@ -280,7 +280,7 @@ export function ClientDetail() {
                     {invoices.map((inv) => (
                       <tr key={inv.id}>
                         <td className="py-2.5 pr-4 font-medium text-slate-800">{inv.number}</td>
-                        <td className="py-2.5 pr-4 text-slate-600">{formatCurrencyDZD(invoiceTotal(inv))}</td>
+                        <td className="py-2.5 pr-4 text-slate-600">{formatCurrencyDZD(invoiceTotalTTC(inv))}</td>
                         <td className="py-2.5 pr-4 text-slate-600">{formatDate(inv.dueDate)}</td>
                         <td className="py-2.5">
                           <Badge className={invoiceStatusStyles[effectiveInvoiceStatus(inv)]}>{effectiveInvoiceStatus(inv)}</Badge>

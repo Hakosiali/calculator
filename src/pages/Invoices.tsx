@@ -11,7 +11,15 @@ import { dataClient } from '../lib/dataClient'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { invoiceStatusStyles } from '../lib/badges'
 import { formatCurrencyDZD, formatDate } from '../lib/format'
-import { effectiveInvoiceStatus, invoiceTotal } from '../lib/invoice'
+import {
+  effectiveInvoiceStatus,
+  invoiceBalance,
+  invoicePaidAmount,
+  invoiceStampDuty,
+  invoiceTotalHT,
+  invoiceTotalTTC,
+  invoiceVAT,
+} from '../lib/invoice'
 import type { Invoice, InvoiceStatus } from '../types'
 
 const STATUSES: (InvoiceStatus | 'all')[] = ['all', 'Payée', 'En attente', 'En retard', 'Annulée']
@@ -34,9 +42,11 @@ export function Invoices() {
   const clients = data?.[1] ?? []
 
   const totals = useMemo(() => {
-    const paid = invoices.filter((i) => effectiveInvoiceStatus(i) === 'Payée').reduce((s, i) => s + invoiceTotal(i), 0)
-    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceTotal(i), 0)
-    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceTotal(i), 0)
+    // "Total encaissé" is actual money received (encaissements), not just the
+    // value of invoices marked "Payée" - a partial payment still counts.
+    const paid = invoices.reduce((s, i) => s + invoicePaidAmount(i), 0)
+    const pending = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En attente').reduce((s, i) => s + invoiceBalance(i), 0)
+    const overdue = invoices.filter((i) => effectiveInvoiceStatus(i) === 'En retard').reduce((s, i) => s + invoiceBalance(i), 0)
     return { paid, pending, overdue }
   }, [invoices])
 
@@ -175,7 +185,7 @@ export function Invoices() {
                       </td>
                       <td className="px-5 py-3 text-slate-600">{formatDate(inv.issueDate)}</td>
                       <td className="px-5 py-3 text-slate-600">{formatDate(inv.dueDate)}</td>
-                      <td className="px-5 py-3 font-medium text-slate-800">{formatCurrencyDZD(invoiceTotal(inv))}</td>
+                      <td className="px-5 py-3 font-medium text-slate-800">{formatCurrencyDZD(invoiceTotalTTC(inv))}</td>
                       <td className="px-5 py-3">
                         <Badge className={invoiceStatusStyles[effectiveInvoiceStatus(inv)]}>{effectiveInvoiceStatus(inv)}</Badge>
                       </td>
@@ -202,20 +212,55 @@ export function Invoices() {
                     {isOpen && (
                       <tr className="bg-slate-50/60">
                         <td colSpan={8} className="px-5 py-3">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Détail des prestations</p>
-                          <table className="w-full text-xs">
-                            <tbody>
-                              {inv.items.map((item, idx) => (
-                                <tr key={idx} className="text-slate-600">
-                                  <td className="py-1 pr-4">{item.description}</td>
-                                  <td className="py-1 pr-4">Qté : {item.quantity}</td>
-                                  <td className="py-1 text-right font-medium text-slate-800">
-                                    {formatCurrencyDZD(item.quantity * item.unitPrice)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Détail des prestations</p>
+                              <table className="w-full text-xs">
+                                <tbody>
+                                  {inv.items.map((item, idx) => (
+                                    <tr key={idx} className="text-slate-600">
+                                      <td className="py-1 pr-4">{item.description}</td>
+                                      <td className="py-1 pr-4">Qté : {item.quantity}</td>
+                                      <td className="py-1 text-right font-medium text-slate-800">
+                                        {formatCurrencyDZD(item.quantity * item.unitPrice)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              <div className="mt-2 space-y-0.5 border-t border-slate-200 pt-2 text-xs text-slate-600">
+                                <div className="flex justify-between"><span>Total HT</span><span>{formatCurrencyDZD(invoiceTotalHT(inv))}</span></div>
+                                <div className="flex justify-between"><span>TVA ({inv.vatRate}%)</span><span>{formatCurrencyDZD(invoiceVAT(inv))}</span></div>
+                                {invoiceStampDuty(inv) > 0 && (
+                                  <div className="flex justify-between"><span>Droit de timbre</span><span>{formatCurrencyDZD(invoiceStampDuty(inv))}</span></div>
+                                )}
+                                <div className="flex justify-between font-semibold text-slate-800"><span>Total TTC</span><span>{formatCurrencyDZD(invoiceTotalTTC(inv))}</span></div>
+                                <div className="flex justify-between text-slate-400"><span>Mode de paiement prévu</span><span>{inv.paymentMode}</span></div>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Encaissements</p>
+                              {inv.payments.length === 0 ? (
+                                <p className="text-xs text-slate-400">Aucun encaissement enregistré.</p>
+                              ) : (
+                                <table className="w-full text-xs">
+                                  <tbody>
+                                    {inv.payments.map((p, idx) => (
+                                      <tr key={idx} className="text-slate-600">
+                                        <td className="py-1 pr-4">{formatDate(p.date)}</td>
+                                        <td className="py-1 pr-4">{p.mode}{p.reference ? ` · ${p.reference}` : ''}</td>
+                                        <td className="py-1 text-right font-medium text-slate-800">{formatCurrencyDZD(p.amount)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-xs font-semibold text-slate-800">
+                                <span>Solde restant</span>
+                                <span>{formatCurrencyDZD(invoiceBalance(inv))}</span>
+                              </div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     )}
